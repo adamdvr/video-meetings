@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm не запускает install-скрипты зависимостей, пока они не перечислены здесь:
+# true — разрешить скрипт, false — сознательно пропустить.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
