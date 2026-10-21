@@ -19,6 +19,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Нужен Node ≥ 24.15 (`.nvmrc`). Если `pnpm` не найден или Nest CLI падает с `ERR_REQUIRE_CYCLE_MODULE`, активна старая версия Node: `source ~/.nvm/nvm.sh && nvm use`.
 - Пакетный менеджер только pnpm, версия закреплена в `packageManager`. Команды вида `npm i …` из инструкций библиотек переводи в `pnpm --filter <web|api> add …`. Общие dev-инструменты ставятся в корень: `pnpm add -Dw …`.
 
+## База данных
+
+PostgreSQL 18 в Docker: `docker-compose.yml` в корне, не turbo-задача. Запуск: `docker compose up -d --wait`, остановка: `docker compose down` (`-v` удаляет том с данными). Параметры (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`) читаются из корневого `.env`, значения по умолчанию и шаблон в `.env.example`. `api` к базе пока не подключён.
+
 ## Команды
 
 Запускаются из корня. turbo выполняет задачу во всех приложениях и кэширует результат.

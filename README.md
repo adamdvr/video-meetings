@@ -11,6 +11,7 @@
 
 - Node.js 24: версия указана в `.nvmrc`, переключиться можно командой `nvm use`.
 - pnpm 12: `npm install -g pnpm@12`. Точная версия зафиксирована в поле `packageManager`.
+- Docker с Compose: для локальной базы данных PostgreSQL.
 
 ## Быстрый старт
 
@@ -19,6 +20,18 @@ nvm use
 pnpm install
 pnpm dev
 ```
+
+## База данных
+
+PostgreSQL 18 поднимается через `docker-compose.yml` в корне. Данные хранятся в именованном томе `postgres-data`.
+
+```bash
+docker compose up -d --wait   # запустить и дождаться healthcheck
+docker compose down           # остановить (данные сохраняются)
+docker compose down -v        # остановить и удалить данные
+```
+
+Параметры по умолчанию: пользователь `postgres`, пароль `postgres`, база `video_meetings`, порт `5432`. Чтобы изменить, скопируйте `.env.example` в `.env`. Строка подключения: `postgresql://postgres:postgres@localhost:5432/video_meetings`. Приложение `api` к базе пока не подключено.
 
 ## Команды
 
@@ -45,6 +58,7 @@ apps/
   web/      Next.js
   api/      NestJS
 packages/   общие пакеты (подключены в pnpm-workspace.yaml, пока пусто)
+docker-compose.yml   локальный PostgreSQL
 ```
 
 ## Соглашения
