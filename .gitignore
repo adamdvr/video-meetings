@@ -32,3 +32,6 @@ npm-debug.log*
 .DS_Store
 *.pem
 .idea/
+
+# Сгенерированный Prisma-клиент (pnpm --filter api db:generate)
+apps/api/src/generated/

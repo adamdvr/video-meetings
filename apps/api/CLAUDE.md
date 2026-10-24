@@ -13,8 +13,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `dev` — `nest start --watch`; `start:debug` — то же с inspector; `start` — `node dist/main`, перед ним нужен `build`.
 - `build` — `nest build` по `tsconfig.build.json`. Собирает только `src/` без спеков, результат в `dist/main.js`.
 - `test` — unit-тесты на Vitest 4 (`src/**/*.spec.ts`). Один файл: `pnpm --filter api test src/app.controller.spec.ts`. По имени теста: `pnpm --filter api test -t "Hello World"`. Также есть `test:watch` и `test:cov`.
-- `test:e2e` — e2e-тесты (`test/**/*.e2e-spec.ts`, конфиг `vitest.config.e2e.ts`). Один файл передаётся так же, путём.
+- `test:e2e` — e2e-тесты (`test/**/*.e2e-spec.ts`, конфиг `vitest.config.e2e.ts`). Нужен запущенный PostgreSQL с применёнными миграциями (`docker compose up -d --wait`, `db:deploy`); тесты оставляют в базе пользователей `user-<uuid>@example.com`. Один файл передаётся так же, путём.
 - Генерация кода: `pnpm --filter api exec nest g <schematic> <name>` (module, controller, service и т. д.). Генератор пишет ESM-код со спеками под Vitest и регистрирует модуль в `AppModule`, но вывод не отформатирован. После генерации нужен `pnpm format`.
+
+## База данных и Prisma
+
+- Prisma 7 с драйвер-адаптером `@prisma/adapter-pg`. Схема в `prisma/schema.prisma`, миграции в `prisma/migrations`, конфиг в `prisma.config.ts`. Версии `prisma` и `@prisma/client` закреплены точно: `latest` в npm сейчас 8.0 RC.
+- Клиент генерируется в `src/generated/prisma` (в git не попадает, ESLint его пропускает). Генерация: `db:generate`; она же в `postinstall` и в turbo перед остальными задачами. После изменения схемы: `db:migrate` (dev, создаёт миграцию) и `db:deploy` (применяет существующие).
+- `PrismaService` (глобальный `PrismaModule`) наследует `PrismaClient`.
+- Конфигурация читается в `src/config/configuration.ts`: он при импорте подгружает корневой `.env` (`process.loadEnvFile`, переменные окружения приоритетнее), `getConfig()` требует `DATABASE_URL` и `JWT_SECRET`. Тесты и `nest start` берут их из `.env`, без него нужны переменные в окружении.
+
+## Авторизация
+
+Модуль `src/auth` построен на CQRS (`@nestjs/cqrs`). Контроллер только собирает сообщение и отправляет в шину: регистрация — команда `RegisterUserCommand` (`commands/`, создаёт пользователя), логин — запрос `LoginQuery` (`queries/`, пользователь только ищется). Логика лежит в обработчиках `RegisterUserHandler` и `LoginHandler`, подпись JWT — в общем `TokenService`. Новые операции добавляй как пару сообщение + обработчик и регистрируй обработчик в `providers` модуля.
+
+Эндпоинты: `POST /auth/register` (201) и `POST /auth/login` (200) принимают `{ email, password }` и возвращают `{ accessToken }`. JWT подписывается через `@nestjs/jwt` (HS256, payload `sub` и `email`, срок по умолчанию 7 суток). Email приводится к нижнему регистру в DTO. Пароль минимум 8 символов, хранится как scrypt-хеш (`node:crypto`, без нативных зависимостей). Дубликат email даёт 409, неверные данные входа 401 с одинаковым ответом для «нет пользователя» и «неверный пароль». Валидация (`ValidationPipe`) подключена через `APP_PIPE` в `AppModule`, а не в `main.ts`, чтобы действовать и в e2e-тестах.
 
 ## ESM
 

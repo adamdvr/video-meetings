@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## База данных
 
-PostgreSQL 18 в Docker: `docker-compose.yml` в корне, не turbo-задача. Запуск: `docker compose up -d --wait`, остановка: `docker compose down` (`-v` удаляет том с данными). Параметры (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`) читаются из корневого `.env`, значения по умолчанию и шаблон в `.env.example`. `api` к базе пока не подключён.
+PostgreSQL 18 в Docker: `docker-compose.yml` в корне, не turbo-задача. Запуск: `docker compose up -d --wait`, остановка: `docker compose down` (`-v` удаляет том с данными). Параметры (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`) читаются из корневого `.env`, значения по умолчанию и шаблон в `.env.example`. `api` подключается к ней через Prisma (`DATABASE_URL` в том же `.env`), подробности в `apps/api/CLAUDE.md`.
 
 ## Команды
 
@@ -43,12 +43,12 @@ pnpm format        # Prettier --write по всему репозиторию; fo
 
 ## Устройство монорепозитория
 
-- **Turborepo** запускает только задачи, объявленные в `tasks` в `turbo.json`. Новый скрипт, который должен работать через turbo, сначала объяви там, иначе turbo выдаст `Could not find task`. `format` и `format:check` — обычные корневые скрипты, а не turbo-задачи.
-- **Переменные окружения.** turbo работает в strict-режиме: задачи не видят переменные shell, пока их не перечислят в `turbo.json` (`env`, `globalEnv`, `passThroughEnv`). Поэтому `PORT=5000 pnpm dev` порт не поменяет. `.env`-файлы приложения читают сами.
+- **Turborepo** запускает только задачи, объявленные в `tasks` в `turbo.json`. Задача `db:generate` (генерация Prisma-клиента в `apps/api/src/generated`) выполняется перед `build`, `lint`, `check-types`, `test` и `test:e2e`. Новый скрипт, который должен работать через turbo, сначала объяви там, иначе turbo выдаст `Could not find task`. `format` и `format:check` — обычные корневые скрипты, а не turbo-задачи.
+- **Переменные окружения.** turbo работает в strict-режиме: задачи не видят переменные shell, пока их не перечислят в `turbo.json` (`env`, `globalEnv`, `passThroughEnv`). Сейчас так проброшены `DATABASE_URL`, `JWT_SECRET` и `JWT_EXPIRES_IN_SECONDS` (`globalPassThroughEnv`). Поэтому `PORT=5000 pnpm dev` порт не поменяет. `.env`-файлы приложения читают сами.
 - **Prettier.** Один `.prettierrc` в корне (`singleQuote`, `trailingComma: all`), точная версия в корневом `package.json`. Конфиги Prettier в приложения не добавлять. Prettier пропускает пути из корневого `.gitignore` и `.prettierignore`. Файлы, изменённые через Edit/Write, автоматически форматирует хук Claude Code (`.claude/hooks/format.mjs`). Изменения через Bash, например вывод `nest g`, хук не видит: после них нужен `pnpm format`.
 - **ESLint.** У каждого приложения свой flat-конфиг (`eslint.config.mjs`), `eslint-config-prettier` подключён в нём последним. `eslint-plugin-prettier` не используется. Версии ESLint в web и api разные намеренно, причины описаны в их CLAUDE.md.
 - **TypeScript** не поднимать до 7.x: `typescript-eslint` 8.x поддерживает только версии `<6.1`.
-- **pnpm 12.** Install-скрипты зависимостей заблокированы, пока пакет не указан в `allowBuilds` (`pnpm-workspace.yaml`). Без этого `pnpm install` падает. Неизвестный ключ в `pnpm-workspace.yaml` тоже роняет команды. Версии моложе суток pnpm не устанавливает.
+- **pnpm 12.** Install-скрипты зависимостей заблокированы, пока пакет не указан в `allowBuilds` (`pnpm-workspace.yaml`). Для Prisma разрешены `prisma` и `@prisma/engines`. Без этого `pnpm install` падает. Неизвестный ключ в `pnpm-workspace.yaml` тоже роняет команды. Версии моложе суток pnpm не устанавливает.
 - **AGENTS.md** в корне и в `apps/web` содержат управляемые блоки. Текст между маркерами `BEGIN` и `END` перезаписывают `turbo` и `next dev`, его не редактировать.
 
 ## Актуальность документации

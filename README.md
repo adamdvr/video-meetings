@@ -5,7 +5,7 @@
 | Приложение | Путь       | Стек                                                         | Порт |
 | ---------- | ---------- | ------------------------------------------------------------ | ---- |
 | `web`      | `apps/web` | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4 | 3000 |
-| `api`      | `apps/api` | NestJS 12 (ESM), Vitest                                      | 4000 |
+| `api`      | `apps/api` | NestJS 12 (ESM), Prisma 7, Vitest                            | 4000 |
 
 ## Требования
 
@@ -31,7 +31,7 @@ docker compose down           # остановить (данные сохран�
 docker compose down -v        # остановить и удалить данные
 ```
 
-Параметры по умолчанию: пользователь `postgres`, пароль `postgres`, база `video_meetings`, порт `5432`. Чтобы изменить, скопируйте `.env.example` в `.env`. Строка подключения: `postgresql://postgres:postgres@localhost:5432/video_meetings`. Приложение `api` к базе пока не подключено.
+Параметры по умолчанию: пользователь `postgres`, пароль `postgres`, база `video_meetings`, порт `5432`. Чтобы изменить, скопируйте `.env.example` в `.env`. Строка подключения: `postgresql://postgres:postgres@localhost:5432/video_meetings`. Приложение `api` подключается к базе через Prisma по `DATABASE_URL` из корневого `.env` (шаблон в `.env.example`, там же `JWT_SECRET`). После `docker compose up` примените миграции: `pnpm --filter api db:deploy`. Тесты `test:e2e` работают с этой же базой и создают в ней пользователей `user-<uuid>@example.com`.
 
 ## Команды
 
