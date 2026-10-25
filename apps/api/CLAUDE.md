@@ -29,6 +29,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Эндпоинты: `POST /auth/register` (201) и `POST /auth/login` (200) принимают `{ email, password }` и возвращают `{ accessToken }`. JWT подписывается через `@nestjs/jwt` (HS256, payload `sub` и `email`, срок по умолчанию 7 суток). Email приводится к нижнему регистру в DTO. Пароль минимум 8 символов, хранится как scrypt-хеш (`node:crypto`, без нативных зависимостей). Дубликат email даёт 409, неверные данные входа 401 с одинаковым ответом для «нет пользователя» и «неверный пароль». Валидация (`ValidationPipe`) подключена через `APP_PIPE` в `AppModule`, а не в `main.ts`, чтобы действовать и в e2e-тестах.
 
+## Встречи
+
+Модуль `src/meetings` тоже на CQRS: `CreateMeetingCommand`, `ListMeetingsQuery`, `GetMeetingQuery` и их обработчики. Модель `Meeting` в Prisma (`title`, `date`, `participants` — массив строк, `ownerId`). Все роуты закрыты `JwtAuthGuard` (`src/auth/jwt-auth.guard.ts`: проверяет `Authorization: Bearer <jwt>`, кладёт `request.user = { id, email }`); текущего пользователя в контроллер отдаёт декоратор `@CurrentUser()`. Новым защищённым роутам добавляй `@UseGuards(JwtAuthGuard)`.
+
+Эндпоинты: `POST /meetings` (201, тело `{ title, date, participants }`), `GET /meetings` (встречи текущего пользователя по возрастанию даты), `GET /meetings/:id` (404, если встречи нет или она чужая, чтобы не раскрывать её существование). Ответ: `{ id, title, date, participants }`. Без токена или с невалидным токеном — 401.
+
 ## ESM
 
 - Относительные импорты пишутся с расширением `.js`, даже из `.ts`-файлов: `import { AppService } from './app.service.js'`.
