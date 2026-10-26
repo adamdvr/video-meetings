@@ -2,13 +2,18 @@
 // Файлы вне репозитория отсекаются здесь, а неподдерживаемые типы и пути
 // из .prettierignore и .gitignore пропускает сам Prettier.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 try {
-  const projectDir = process.env.CLAUDE_PROJECT_DIR;
+  const projectDir = realpathSync(process.env.CLAUDE_PROJECT_DIR);
   const input = JSON.parse(readFileSync(0, 'utf8'));
-  const file = input.tool_response?.filePath ?? input.tool_input?.file_path;
+  // Настоящий путь: файл, открытый через симлинк (например, .claude/skills → .agents/skills),
+  // проверяется по своему реальному расположению. Для абсолютного пути через симлинк
+  // Prettier не применяет правила .prettierignore.
+  const file = realpathSync(
+    input.tool_response?.filePath ?? input.tool_input?.file_path,
+  );
   const relative = path.relative(projectDir, file);
   const insideProject =
     relative !== '' &&
