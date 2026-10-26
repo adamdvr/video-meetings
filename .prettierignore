@@ -1,5 +1,7 @@
 # Prettier также пропускает всё, что перечислено в .gitignore.
-pnpm-lock.yaml
+package-lock.json
 
-# Сторонние agent skills: ими управляет skills CLI, хэши лежат в skills-lock.json.
+# Сторонние agent skills и симлинки на них: ими управляет skills CLI,
+# хэши лежат в skills-lock.json.
 .agents/
+.claude/skills/

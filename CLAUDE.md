@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Обзор
 
-Монорепозиторий сервиса видеовстреч на pnpm workspaces и Turborepo. Два независимых приложения, общего кода пока нет:
+Монорепозиторий сервиса видеовстреч на npm workspaces и Turborepo. Два независимых приложения, общего кода пока нет:
 
 - `apps/web` — фронтенд на Next.js, порт 3000 (см. `apps/web/CLAUDE.md`)
 - `apps/api` — бэкенд на NestJS, порт 4000 (см. `apps/api/CLAUDE.md`)
-- `packages/*` — место под общие пакеты. Glob объявлен в `pnpm-workspace.yaml`, каталога пока нет.
+- `packages/*` — место под общие пакеты. Glob объявлен в `workspaces` корневого `package.json`, каталога пока нет.
 
-Версии инструментов новее данных обучения, поэтому сверяйся с документацией установленных пакетов, а не с памятью: Next.js 16.4, NestJS 12, Turborepo 2.11, pnpm 12, Vitest 4, ESLint 9 и 10, TypeScript 5.9 и 6.0.
+Версии инструментов новее данных обучения, поэтому сверяйся с документацией установленных пакетов, а не с памятью: Next.js 16.4, NestJS 12, Turborepo 2.11, npm 11, Vitest 4, ESLint 9 и 10, TypeScript 5.9 и 6.0.
 
 ## Окружение
 
-- Нужен Node ≥ 24.15 (`.nvmrc`). Если `pnpm` не найден или Nest CLI падает с `ERR_REQUIRE_CYCLE_MODULE`, активна старая версия Node: `source ~/.nvm/nvm.sh && nvm use`.
-- Пакетный менеджер только pnpm, версия закреплена в `packageManager`. Команды вида `npm i …` из инструкций библиотек переводи в `pnpm --filter <web|api> add …`. Общие dev-инструменты ставятся в корень: `pnpm add -Dw …`.
+- Нужен Node ≥ 24.15 (`.nvmrc`). Если Nest CLI падает с `ERR_REQUIRE_CYCLE_MODULE`, активна старая версия Node: `source ~/.nvm/nvm.sh && nvm use`.
+- Пакетный менеджер только npm, версия закреплена в `packageManager`. Зависимости приложения ставь с флагом workspace: `npm install <пакет> -w <web|api>`. Общие dev-инструменты ставятся в корень: `npm install -D <пакет>`. Lockfile один, `package-lock.json` в корне.
 
 ## База данных
 
@@ -28,28 +28,30 @@ PostgreSQL 18 в Docker: `docker-compose.yml` в корне, не turbo-зада
 Запускаются из корня. turbo выполняет задачу во всех приложениях и кэширует результат.
 
 ```bash
-pnpm dev           # оба приложения в watch-режиме
-pnpm build         # production-сборка
-pnpm start         # build + запуск production-версий
-pnpm lint          # ESLint; lint:fix — с автоисправлением
-pnpm check-types   # проверка типов TypeScript
-pnpm test          # unit-тесты (пока есть только в api)
-pnpm test:e2e      # e2e-тесты api
-pnpm format        # Prettier --write по всему репозиторию; format:check — проверка
+npm run dev        # оба приложения в watch-режиме
+npm run build      # production-сборка
+npm start          # build + запуск production-версий
+npm run lint       # ESLint; lint:fix — с автоисправлением
+npm run check-types # проверка типов TypeScript
+npm test            # unit-тесты (пока есть только в api)
+npm run test:e2e  # e2e-тесты api
+npm run format     # Prettier --write по всему репозиторию; format:check — проверка
 ```
 
-- Одно приложение: `pnpm <task> --filter=web` (через turbo) или `pnpm --filter api <script> [args]` (скрипт напрямую, без turbo).
-- Полная проверка: `pnpm turbo run lint check-types test test:e2e build && pnpm format:check`.
+- Одно приложение: `npm run <task> -- --filter=web` (через turbo) или `npm run <script> -w api [-- args]` (скрипт напрямую, без turbo).
+- Полная проверка: `npx turbo run lint check-types test test:e2e build && npm run format:check`.
 
 ## Устройство монорепозитория
 
 - **Turborepo** запускает только задачи, объявленные в `tasks` в `turbo.json`. Задача `db:generate` (генерация Prisma-клиента в `apps/api/src/generated`) выполняется перед `build`, `lint`, `check-types`, `test` и `test:e2e`. Новый скрипт, который должен работать через turbo, сначала объяви там, иначе turbo выдаст `Could not find task`. `format` и `format:check` — обычные корневые скрипты, а не turbo-задачи.
-- **Переменные окружения.** turbo работает в strict-режиме: задачи не видят переменные shell, пока их не перечислят в `turbo.json` (`env`, `globalEnv`, `passThroughEnv`). Сейчас так проброшены `DATABASE_URL`, `JWT_SECRET` и `JWT_EXPIRES_IN_SECONDS` (`globalPassThroughEnv`). Поэтому `PORT=5000 pnpm dev` порт не поменяет. `.env`-файлы приложения читают сами.
-- **Prettier.** Один `.prettierrc` в корне (`singleQuote`, `trailingComma: all`), точная версия в корневом `package.json`. Конфиги Prettier в приложения не добавлять. Prettier пропускает пути из корневого `.gitignore` и `.prettierignore`. Файлы, изменённые через Edit/Write, автоматически форматирует хук Claude Code (`.claude/hooks/format.mjs`). Изменения через Bash, например вывод `nest g`, хук не видит: после них нужен `pnpm format`.
+- **Переменные окружения.** turbo работает в strict-режиме: задачи не видят переменные shell, пока их не перечислят в `turbo.json` (`env`, `globalEnv`, `passThroughEnv`). Сейчас так проброшены `DATABASE_URL`, `JWT_SECRET` и `JWT_EXPIRES_IN_SECONDS` (`globalPassThroughEnv`). Поэтому `PORT=5000 npm run dev` порт не поменяет. `.env`-файлы приложения читают сами.
+- **Prettier.** Один `.prettierrc` в корне (`singleQuote`, `trailingComma: all`), точная версия в корневом `package.json`. Конфиги Prettier в приложения не добавлять. Prettier пропускает пути из корневого `.gitignore` и `.prettierignore`. Файлы, изменённые через Edit/Write, автоматически форматирует хук Claude Code (`.claude/hooks/format.mjs`). Изменения через Bash, например вывод `nest g`, хук не видит: после них нужен `npm run format`.
 - **ESLint.** У каждого приложения свой flat-конфиг (`eslint.config.mjs`), `eslint-config-prettier` подключён в нём последним. `eslint-plugin-prettier` не используется. Версии ESLint в web и api разные намеренно, причины описаны в их CLAUDE.md.
 - **TypeScript** не поднимать до 7.x: `typescript-eslint` 8.x поддерживает только версии `<6.1`.
-- **pnpm 12.** Install-скрипты зависимостей заблокированы, пока пакет не указан в `allowBuilds` (`pnpm-workspace.yaml`). Для Prisma разрешены `prisma` и `@prisma/engines`. Без этого `pnpm install` падает. Неизвестный ключ в `pnpm-workspace.yaml` тоже роняет команды. Версии моложе суток pnpm не устанавливает.
+- **npm 11.** Install-скрипты зависимостей разрешаются через `allowScripts` в корневом `package.json`. Для Prisma разрешены `prisma` и `@prisma/engines`, `unrs-resolver` и `fsevents` запрещены. Новый пакет со скриптом установки npm предупредит сам: решение фиксируй командой `npm install-scripts approve|deny <пакет> --no-allow-scripts-pin`.
+- **Переопределение `multer`.** В `overrides` корневого `package.json` закреплён `multer@2.5.0`: `@nestjs/platform-express` 12.2.0 требует уязвимый `2.4.0` (DoS, GHSA-q7qp-rjg7-q26m). Когда выйдет `@nestjs/platform-express` с исправленным multer, убери override.
 - **AGENTS.md** в корне и в `apps/web` содержат управляемые блоки. Текст между маркерами `BEGIN` и `END` перезаписывают `turbo` и `next dev`, его не редактировать.
+- **Agent skills** лежат в `.agents/skills/`, их ставит skills CLI, источники и хэши записаны в `skills-lock.json`. Claude Code ищет skills только в `.claude/skills/`, поэтому там лежат относительные симлинки на них. Для нового skill добавь ссылку: `ln -s ../../.agents/skills/<name> .claude/skills/<name>`. Файлы skills не редактировать: обновление через skills CLI их перезапишет.
 
 ## Актуальность документации
 

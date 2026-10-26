@@ -1,7 +1,11 @@
 {
   "name": "video-meetings",
   "private": true,
-  "packageManager": "pnpm@12.11.2",
+  "packageManager": "npm@11.19.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=24.15.0"
   },
@@ -20,5 +24,14 @@
   "devDependencies": {
     "prettier": "3.9.10",
     "turbo": "^2.11.7"
+  },
+  "allowScripts": {
+    "prisma": true,
+    "@prisma/engines": true,
+    "unrs-resolver": false,
+    "fsevents": false
+  },
+  "overrides": {
+    "multer": "2.5.0"
   }
 }

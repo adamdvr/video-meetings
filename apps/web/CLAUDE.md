@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Команды
 
-Запускать как `pnpm --filter web <script>` из корня или через turbo: `pnpm <task> --filter=web`.
+Запускать как `npm run <script> -w web` из корня или через turbo: `npm run <task> -- --filter=web`.
 
 - `dev`, `build`, `start` — стандартные команды `next`.
 - `lint` / `lint:fix` — ESLint CLI. Команды `next lint` в Next 16 нет.
@@ -26,4 +26,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## HeroUI
 
-В корне репозитория установлен agent skill для HeroUI v3: `.agents/skills/heroui-react/SKILL.md`, источник указан в `skills-lock.json`. Сам `@heroui/react` в web пока не установлен. Перед работой с HeroUI прочитай SKILL.md: API v3 несовместим с v2. Шаги установки в skill рассчитаны на npm и PostCSS. Здесь пакеты ставятся через `pnpm --filter web add …`, а Tailwind подключён через `@tailwindcss/turbopack`, а не PostCSS.
+Для HeroUI v3 подключён skill `heroui-react`. Сам `@heroui/react` в web пока не установлен. Перед работой с HeroUI используй этот skill: API v3 несовместим с v2. Шаги установки в skill рассчитаны на npm и PostCSS. Здесь пакеты ставятся через `npm install <пакет> -w web`, а Tailwind подключён через `@tailwindcss/turbopack`, а не PostCSS.

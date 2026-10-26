@@ -8,13 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Команды
 
-Запускать как `pnpm --filter api <script>` из корня или через turbo: `pnpm <task> --filter=api`.
+Запускать как `npm run <script> -w api` из корня или через turbo: `npm run <task> -- --filter=api`.
 
 - `dev` — `nest start --watch`; `start:debug` — то же с inspector; `start` — `node dist/main`, перед ним нужен `build`.
 - `build` — `nest build` по `tsconfig.build.json`. Собирает только `src/` без спеков, результат в `dist/main.js`.
-- `test` — unit-тесты на Vitest 4 (`src/**/*.spec.ts`). Один файл: `pnpm --filter api test src/app.controller.spec.ts`. По имени теста: `pnpm --filter api test -t "Hello World"`. Также есть `test:watch` и `test:cov`.
+- `test` — unit-тесты на Vitest 4 (`src/**/*.spec.ts`). Один файл: `npm run test -w api -- src/app.controller.spec.ts`. По имени теста: `npm run test -w api -- -t "Hello World"`. Также есть `test:watch` и `test:cov`.
 - `test:e2e` — e2e-тесты (`test/**/*.e2e-spec.ts`, конфиг `vitest.config.e2e.ts`). Нужен запущенный PostgreSQL с применёнными миграциями (`docker compose up -d --wait`, `db:deploy`); тесты оставляют в базе пользователей `user-<uuid>@example.com`. Один файл передаётся так же, путём.
-- Генерация кода: `pnpm --filter api exec nest g <schematic> <name>` (module, controller, service и т. д.). Генератор пишет ESM-код со спеками под Vitest и регистрирует модуль в `AppModule`, но вывод не отформатирован. После генерации нужен `pnpm format`.
+- Генерация кода: `npm exec -w api -- nest g <schematic> <name>` (module, controller, service и т. д.). Генератор пишет ESM-код со спеками под Vitest и регистрирует модуль в `AppModule`, но вывод не отформатирован. После генерации нужен `npm run format`.
 
 ## База данных и Prisma
 

@@ -33,5 +33,5 @@ npm-debug.log*
 *.pem
 .idea/
 
-# Сгенерированный Prisma-клиент (pnpm --filter api db:generate)
+# Сгенерированный Prisma-клиент (npm run db:generate -w api)
 apps/api/src/generated/
