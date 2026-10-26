@@ -2,10 +2,10 @@
 
 Монорепозиторий на [npm workspaces](https://docs.npmjs.com/cli/using-npm/workspaces) и [Turborepo](https://turborepo.com).
 
-| Приложение | Путь       | Стек                                                         | Порт |
-| ---------- | ---------- | ------------------------------------------------------------ | ---- |
-| `web`      | `apps/web` | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4 | 3000 |
-| `api`      | `apps/api` | NestJS 12 (ESM), Prisma 7, Vitest                            | 4000 |
+| Приложение | Путь       | Стек                                                                   | Порт |
+| ---------- | ---------- | ---------------------------------------------------------------------- | ---- |
+| `web`      | `apps/web` | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, HeroUI 3 | 3000 |
+| `api`      | `apps/api` | NestJS 12 (ESM), Prisma 7, Vitest                                      | 4000 |
 
 ## Требования
 

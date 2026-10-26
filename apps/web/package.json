@@ -11,6 +11,8 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"

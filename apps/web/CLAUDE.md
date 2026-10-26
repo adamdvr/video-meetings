@@ -26,4 +26,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## HeroUI
 
-Для HeroUI v3 подключён skill `heroui-react`. Сам `@heroui/react` в web пока не установлен. Перед работой с HeroUI используй этот skill: API v3 несовместим с v2. Шаги установки в skill рассчитаны на npm и PostCSS. Здесь пакеты ставятся через `npm install <пакет> -w web`, а Tailwind подключён через `@tailwindcss/turbopack`, а не PostCSS.
+HeroUI v3 (`@heroui/react`, `@heroui/styles`) установлен в web. Стили подключены в `src/app/globals.css` строкой `@import '@heroui/styles'` сразу после `@import 'tailwindcss'`. Provider не нужен. Перед работой с HeroUI используй skill `heroui-react`: API v3 несовместим с v2, компоненты составные (`Card.Header`), обработчик называется `onPress`. Шаги установки в skill рассчитаны на PostCSS, а здесь Tailwind подключён через `@tailwindcss/turbopack`, поэтому `postcss.config.mjs` не нужен. HeroUI задаёт CSS-переменные `--background` и `--foreground`, не переопределяй их в `globals.css`. После установки новых пакетов перезапусти `next dev`, иначе стили не подхватятся.
