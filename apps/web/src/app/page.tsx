@@ -1,4 +1,5 @@
-import { Button } from '@heroui/react';
+import { Button, buttonVariants } from '@heroui/react';
+import Link from 'next/link';
 import { Suspense } from 'react';
 import { getSession } from '@/lib/session';
 import { logout } from './actions';
@@ -32,7 +33,12 @@ async function SessionActions() {
             </Button>
           </form>
         ) : (
-          <Button variant="secondary">Войти</Button>
+          <Link
+            className={buttonVariants({ variant: 'secondary' })}
+            href="/login"
+          >
+            Войти
+          </Link>
         )}
       </div>
       {session && (

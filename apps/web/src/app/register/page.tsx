@@ -1,7 +1,8 @@
 import { Card } from '@heroui/react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { BrandPanel } from '@/components/brand-panel';
 import { Logo } from '@/components/logo';
-import { BrandPanel } from './brand-panel';
 import { RegisterForm } from './register-form';
 
 export const metadata: Metadata = {
@@ -13,9 +14,9 @@ export default function RegisterPage() {
   return (
     <main className="grid min-h-dvh bg-background text-foreground lg:grid-cols-2">
       {/* Верхний отступ равен половине свободной высоты при начальном размере блока: форма стоит по центру,
-          но не прыгает, когда появляются ошибки. Блок с логотипом считаем как 34rem (на деле 30rem плюс запас
-          на общую ошибку, чтобы на телефоне она не вызывала прокрутку), без логотипа на широком экране — 25,5rem. */}
-      <section className="relative flex items-start justify-center overflow-hidden px-4 pt-[max(2.5rem,calc((100dvh_-_34rem)/2))] pb-10 sm:px-8 lg:pt-[max(2.5rem,calc((100dvh_-_25.5rem)/2))]">
+          но не прыгает, когда появляются ошибки. Блок с логотипом считаем как 36,75rem (на деле 33,25rem плюс запас
+          на общую ошибку, чтобы на телефоне она не вызывала прокрутку), без логотипа на широком экране — 28,25rem. */}
+      <section className="relative flex items-start justify-center overflow-hidden px-4 pt-[max(2.5rem,calc((100dvh_-_36.75rem)/2))] pb-10 sm:px-8 lg:pt-[max(2.5rem,calc((100dvh_-_28.25rem)/2))]">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -top-40 -right-32 size-96 rounded-full bg-accent/15 blur-3xl"
@@ -36,6 +37,12 @@ export default function RegisterPage() {
           <Card className="mt-8 p-6 shadow-xl shadow-black/5 sm:p-8">
             <RegisterForm />
           </Card>
+          <p className="mt-6 text-center text-sm text-muted">
+            Уже есть аккаунт?{' '}
+            <Link className="link text-accent underline" href="/login">
+              Войти
+            </Link>
+          </p>
         </div>
       </section>
 

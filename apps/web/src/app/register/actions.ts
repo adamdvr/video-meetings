@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, readJson } from '@/lib/api';
 import { createSession } from '@/lib/session';
 import {
   EMAIL_ERROR,
@@ -75,13 +75,6 @@ export async function register(
   await createSession(accessToken);
   // redirect() бросает исключение, поэтому вызывается вне try/catch и последним.
   redirect('/');
-}
-
-async function readJson(response: Response) {
-  const body: unknown = await response.json().catch(() => null);
-  return typeof body === 'object' && body !== null
-    ? (body as Record<string, unknown>)
-    : {};
 }
 
 // На невалидное тело api отвечает 400 и списком сообщений class-validator вида «email must be an email».

@@ -8,3 +8,10 @@ export function apiFetch(path: string, init?: RequestInit) {
     ...init,
   });
 }
+
+export async function readJson(response: Response) {
+  const body: unknown = await response.json().catch(() => null);
+  return typeof body === 'object' && body !== null
+    ? (body as Record<string, unknown>)
+    : {};
+}
