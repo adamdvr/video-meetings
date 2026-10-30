@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { IQueryHandler, QueryBus, QueryHandler } from '@nestjs/cqrs';
+import { FindUserByEmailQuery } from '../../users/queries/find-user-by-email.query.js';
 import { hashPassword, verifyPassword } from '../password.js';
 import { AccessToken, TokenService } from '../token.service.js';
 import { LoginQuery } from './login.query.js';
@@ -12,12 +12,12 @@ const dummyHash = await hashPassword('dummy-password');
 @QueryHandler(LoginQuery)
 export class LoginHandler implements IQueryHandler<LoginQuery, AccessToken> {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly queryBus: QueryBus,
     private readonly tokens: TokenService,
   ) {}
 
   async execute({ email, password }: LoginQuery) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.queryBus.execute(new FindUserByEmailQuery(email));
     const valid = await verifyPassword(
       password,
       user?.passwordHash ?? dummyHash,
