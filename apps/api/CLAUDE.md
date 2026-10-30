@@ -4,75 +4,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## apps/api
 
-Бэкенд на NestJS 12 (платформа Express) и TypeScript 6.0. Пакет в формате ESM: `"type": "module"`, `module: nodenext`. Порт 4000 задаётся как `process.env.PORT ?? 4000` в `src/main.ts`. При запуске через turbo `PORT` из shell не пробрасывается.
+Backend on NestJS 12 (Express platform) and TypeScript 6.0. The package is ESM: `"type": "module"`, `module: nodenext`. The port 4000 is set as `process.env.PORT ?? 4000` in `src/main.ts`. When started through turbo, `PORT` from the shell is not passed through.
 
-## Команды
+## Commands
 
-Запускать как `npm run <script> -w api` из корня или через turbo: `npm run <task> -- --filter=api`.
+Run as `npm run <script> -w api` from the root or through turbo: `npm run <task> -- --filter=api`.
 
-- `dev` — `nest start --watch`; `start:debug` — то же с inspector; `start` — `node dist/main`, перед ним нужен `build`.
-- `build` — `nest build` по `tsconfig.build.json`. Собирает только `src/` без спеков, результат в `dist/main.js`.
-- `test` — unit-тесты на Vitest 4 (`src/**/*.spec.ts`). Пока ни одного нет, поведение api проверяют e2e-тесты, а `passWithNoTests` в `vitest.config.ts` не даёт задаче упасть без файлов. Один файл: `npm run test -w api -- src/<путь>.spec.ts`. По имени теста: `npm run test -w api -- -t "<имя>"`. Также есть `test:watch` и `test:cov`.
-- `test:e2e` — e2e-тесты (`test/**/*.e2e-spec.ts`, конфиг `vitest.config.e2e.ts`). Нужен запущенный PostgreSQL с применёнными миграциями (`docker compose up -d --wait`, `db:deploy`); тесты оставляют в базе пользователей `user-<uuid>@example.com`. Один файл передаётся так же, путём.
-- Генерация кода: `npm exec -w api -- nest g <schematic> <name>` (module, controller, service и т. д.). Генератор пишет ESM-код со спеками под Vitest и регистрирует модуль в `AppModule`, но вывод не отформатирован. После генерации нужен `npm run format`.
+- `dev` — `nest start --watch`; `start:debug` — the same with the inspector; `start` — `node dist/main`, requires `build` first.
+- `build` — `nest build` using `tsconfig.build.json`. Builds only `src/` without specs, the result is `dist/main.js`.
+- `test` — unit tests on Vitest 4 (`src/**/*.spec.ts`). There are none yet: api behavior is verified by the e2e tests, and `passWithNoTests` in `vitest.config.ts` keeps the task from failing when there are no files. One file: `npm run test -w api -- src/<path>.spec.ts`. By test name: `npm run test -w api -- -t "<name>"`. There are also `test:watch`, `test:cov` and `test:debug` (`--inspect-brk`, files are not run in parallel); all three use the unit config.
+- `test:e2e` — e2e tests (`test/**/*.e2e-spec.ts`, config `vitest.config.e2e.ts`). Needs a running PostgreSQL with migrations applied (`docker compose up -d --wait`, `db:deploy`); the tests leave `user-<uuid>@example.com` users in the database. A file and a test name are passed the same way as for `test`: `npm run test:e2e -w api -- test/auth.e2e-spec.ts -t "<name>"`. Through turbo the result is cached by files, not by the database state; add `--force` for an honest run. The scripts have no watch mode for e2e: `npm exec -w api -- vitest --config vitest.config.e2e.ts`. What the typical environment errors mean (no `.env`, database is down, no migrations) is described in the README, section "Тесты".
+- Code generation: `npm exec -w api -- nest g <schematic> <name>` (module, controller, service, etc.). The generator writes ESM code with Vitest specs and registers the module in `AppModule`, but the output is not formatted. Run `npm run format` after generating.
 
-## База данных и Prisma
+## Database and Prisma
 
-- Prisma 7 с драйвер-адаптером `@prisma/adapter-pg`. Схема в `prisma/schema.prisma`, миграции в `prisma/migrations`, конфиг в `prisma.config.ts`. Версии `prisma` и `@prisma/client` закреплены точно: `latest` в npm сейчас 8.0 RC.
-- Клиент генерируется в `src/generated/prisma` (в git не попадает, ESLint его пропускает). Генерация: `db:generate`; она же в `postinstall` и в turbo перед остальными задачами. После изменения схемы: `db:migrate` (dev, создаёт миграцию) и `db:deploy` (применяет существующие).
-- `PrismaService` (глобальный `PrismaModule`) наследует `PrismaClient`.
-- Конфигурация читается в `src/config/configuration.ts`: он при импорте подгружает корневой `.env` (`process.loadEnvFile`, переменные окружения приоритетнее), `getConfig()` требует `DATABASE_URL` и `JWT_SECRET`. Тесты и `nest start` берут их из `.env`, без него нужны переменные в окружении.
+- Prisma 7 with the driver adapter `@prisma/adapter-pg`. The schema is in `prisma/schema.prisma`, migrations in `prisma/migrations`, config in `prisma.config.ts`. The versions of `prisma` and `@prisma/client` are pinned exactly: `latest` on npm is 8.0 RC right now.
+- The client is generated into `src/generated/prisma` (not committed to git, skipped by ESLint). Generation: `db:generate`; it also runs in `postinstall` and in turbo before the other tasks. After changing the schema: `db:migrate` (dev, creates a migration) and `db:deploy` (applies the existing ones).
+- `PrismaService` (global `PrismaModule`) extends `PrismaClient`.
+- Configuration is read in `src/config/configuration.ts`: on import it loads the root `.env` (`process.loadEnvFile`, environment variables take priority), `getConfig()` requires `DATABASE_URL` and `JWT_SECRET`. Tests and `nest start` take them from `.env`; without it the variables must be in the environment.
 
-## Модули
+## Modules
 
-`AppModule` (`src/app.module.ts`) только собирает приложение: импортирует модули ниже и подключает глобальный `ValidationPipe` через `APP_PIPE`. Своих контроллеров и сервисов у него нет, поэтому корневой `GET /` отвечает 404. Новый модуль добавляй в его `imports`.
+`AppModule` (`src/app.module.ts`) only assembles the app: it imports the modules below and registers the global `ValidationPipe` through `APP_PIPE`. It has no controllers or services of its own, so the root `GET /` responds with 404. Add a new module to its `imports`.
 
-- `PrismaModule` (`src/prisma`, глобальный): `PrismaService`, клиент БД. Импортировать его в другие модули не нужно.
-- `AuthModule` (`src/auth`): эндпоинты `/auth/*`, пароли и JWT, `JwtAuthGuard` и `@CurrentUser()`; см. «Авторизация». `JwtModule` в нём зарегистрирован как глобальный, поэтому `JwtAuthGuard` работает в любом модуле без импорта `AuthModule`. Зависит от `UsersModule`.
-- `UsersModule` (`src/users`): создание и поиск пользователей, только сообщения для других модулей; см. «Пользователи». От других прикладных модулей не зависит.
-- `MeetingsModule` (`src/meetings`): встречи текущего пользователя, `/meetings`; см. «Встречи». Из `auth` берёт `JwtAuthGuard` и `@CurrentUser()` (импорт файлов, а не модуля).
+- `PrismaModule` (`src/prisma`, global): `PrismaService`, the database client. There is no need to import it into other modules.
+- `AuthModule` (`src/auth`): the `/auth/*` endpoints, passwords and JWT, `JwtAuthGuard` and `@CurrentUser()`; see "Auth". Its `JwtModule` is registered as global, so `JwtAuthGuard` works in any module without importing `AuthModule`. Depends on `UsersModule`.
+- `UsersModule` (`src/users`): creating and finding users, messages for other modules only; see "Users". Does not depend on other feature modules.
+- `MeetingsModule` (`src/meetings`): the current user's meetings, `/meetings`; see "Meetings". Takes `JwtAuthGuard` and `@CurrentUser()` from `auth` (a file import, not a module import).
 
-Зависимости идут в одну сторону: `meetings` → `auth` → `users`. Данные другого модуля берут через шину, правила — в разделе «CQRS».
+Dependencies go one way: `meetings` → `auth` → `users`. Another module's data is obtained through the bus, the rules are in the "CQRS" section.
 
 ## CQRS
 
-Бизнес-операции api построены на `@nestjs/cqrs` (модули `auth`, `users` и `meetings`). Контроллер не содержит логики: он принимает DTO, собирает сообщение и отправляет его в шину (`CommandBus` или `QueryBus`), а возвращает то, что вернул обработчик.
+Business operations of api are built on `@nestjs/cqrs` (modules `auth`, `users` and `meetings`). A controller has no logic: it takes a DTO, builds a message and sends it to the bus (`CommandBus` or `QueryBus`), and returns whatever the handler returned.
 
-- **Команда** меняет состояние (создаёт, обновляет, удаляет), **запрос** только читает. Критерий именно этот, а не HTTP-метод: `POST /auth/login` ничего не пишет в базу, поэтому это `LoginQuery`.
-- **Сообщение** — класс с `public readonly` параметрами конструктора, только примитивы и даты, без логики. Имена: `<Глагол><Сущность>Command` и `<Глагол><Сущность>Query`, файлы `commands/*.command.ts` и `queries/*.query.ts`.
-- **Обработчик** (`@CommandHandler` или `@QueryHandler`, рядом с сообщением, файл `*.handler.ts`) — одна операция на один класс. Он работает с `PrismaService` и другими сервисами, бросает исключения Nest (`NotFoundException`, `ConflictException`, `UnauthorizedException`) и возвращает готовый ответ (для встреч это `MeetingView`, а не Prisma-модель). Запрос `Find…` (`FindUserByEmailQuery`) при отсутствии данных возвращает `null`, а не бросает `NotFoundException`: вызывающий модуль сам решает, что это значит (логин отвечает 401, а не 404).
-- **Кто и над чем действует** передаётся в сообщении явно: например, `ownerId` в запросах встреч берётся из `@CurrentUser()` в контроллере. Обработчик не читает запрос HTTP.
-- **Валидация формы** данных — в DTO контроллера (`class-validator`), правила предметной области — в обработчике.
-- **Регистрация.** Модуль импортирует `CqrsModule`, а каждый обработчик попадает в `providers`. Без этого сообщение уйдёт в шину, и она бросит ошибку об отсутствующем обработчике.
-- **Связь между модулями.** Модуль работает с чужими данными только через шину: его обработчик отправляет сообщение другого модуля и не лезет в чужие таблицы и сервисы (так `auth` общается с `users`). Контракт модуля — его сообщения и тип результата. Сообщение, результат которого читает другой модуль, наследует `Command<Результат>` или `Query<Результат>` из `@nestjs/cqrs`: тогда `execute` возвращает типизированный результат, а не `any`. Модуль-отправитель импортирует модуль-получатель (`AuthModule` → `UsersModule`). Шине это не нужно, она собирает обработчики со всех модулей, но так зависимость видна в графе модулей. Зависимость односторонняя, циклов быть не должно.
-- **Новая операция** = сообщение + обработчик + регистрация + строка в контроллере (у операции, которую вызывают только другие модули, контроллера нет). События (`EventBus`) и саги пока не используются.
+- **A command** changes state (creates, updates, deletes), **a query** only reads. This is the criterion, not the HTTP method: `POST /auth/login` writes nothing to the database, so it is a `LoginQuery`.
+- **A message** is a class with `public readonly` constructor parameters, primitives and dates only, no logic. Names: `<Verb><Entity>Command` and `<Verb><Entity>Query`, files `commands/*.command.ts` and `queries/*.query.ts`.
+- **A handler** (`@CommandHandler` or `@QueryHandler`, next to the message, file `*.handler.ts`) is one operation per class. It works with `PrismaService` and other services, throws Nest exceptions (`NotFoundException`, `ConflictException`, `UnauthorizedException`) and returns a ready response (for meetings it is `MeetingView`, not a Prisma model). A `Find…` query (`FindUserByEmailQuery`) returns `null` when there is no data instead of throwing `NotFoundException`: the calling module decides what that means (login answers 401, not 404).
+- **Who acts and on what** is passed in the message explicitly: for example, `ownerId` in the meeting queries comes from `@CurrentUser()` in the controller. A handler does not read the HTTP request.
+- **Form validation** of the data is in the controller DTO (`class-validator`), domain rules are in the handler.
+- **Registration.** A module imports `CqrsModule`, and every handler goes into `providers`. Without it the message goes to the bus and the bus throws a missing-handler error.
+- **Links between modules.** A module works with another module's data only through the bus: its handler sends the other module's message and does not reach into foreign tables and services (this is how `auth` talks to `users`). The module's contract is its messages and the result type. A message whose result is read by another module extends `Command<Result>` or `Query<Result>` from `@nestjs/cqrs`: then `execute` returns a typed result instead of `any`. The sending module imports the receiving module (`AuthModule` → `UsersModule`). The bus does not need this, it collects handlers from all modules, but the dependency becomes visible in the module graph. The dependency is one-directional, there must be no cycles.
+- **A new operation** = message + handler + registration + a line in the controller (an operation that only other modules call has no controller). Events (`EventBus`) and sagas are not used yet.
 
-## Авторизация
+## Auth
 
-Модуль `src/auth` (устройство операций — в разделе «CQRS») отвечает за учётные данные и токены: хеширование и проверку пароля (`password.ts`), подпись JWT (`TokenService`), проверку токена (`JwtAuthGuard`) и эндпоинты `/auth/*`. Пользователей он создаёт и ищет только через шину модуля `users` и к Prisma не обращается. Регистрация — команда `RegisterUserCommand` (`commands/`): `RegisterUserHandler` хеширует пароль, отправляет `CreateUserCommand` и выпускает токен. Логин — запрос `LoginQuery` (`queries/`, состояние не меняется): `LoginHandler` отправляет `FindUserByEmailQuery`, проверяет пароль и выпускает токен.
+The `src/auth` module (how operations are built is in the "CQRS" section) is responsible for credentials and tokens: hashing and verifying the password (`password.ts`), signing the JWT (`TokenService`), verifying the token (`JwtAuthGuard`) and the `/auth/*` endpoints. It creates and finds users only through the bus of the `users` module and does not touch Prisma. Registration is the command `RegisterUserCommand` (`commands/`): `RegisterUserHandler` hashes the password, sends `CreateUserCommand` and issues a token. Login is the query `LoginQuery` (`queries/`, it changes no state): `LoginHandler` sends `FindUserByEmailQuery`, verifies the password and issues a token.
 
-Эндпоинты: `POST /auth/register` (201) и `POST /auth/login` (200) принимают `{ email, password }` и возвращают `{ accessToken }`. JWT подписывается через `@nestjs/jwt` (HS256, payload `sub` и `email`, срок по умолчанию 7 суток). Email приводится к нижнему регистру в DTO. Пароль от 8 до 128 символов, хранится как scrypt-хеш (`node:crypto`, без нативных зависимостей). Дубликат email даёт 409 (его бросает `CreateUserHandler` модуля `users`), неверные данные входа 401 с одинаковым ответом для «нет пользователя» и «неверный пароль». Валидация (`ValidationPipe`) подключена через `APP_PIPE` в `AppModule`, а не в `main.ts`, чтобы действовать и в e2e-тестах.
+Endpoints: `POST /auth/register` (201) and `POST /auth/login` (200) take `{ email, password }` and return `{ accessToken }`. The JWT is signed through `@nestjs/jwt` (HS256, payload `sub` and `email`, default lifetime 7 days). The email is lowercased in the DTO. The password is 8 to 128 characters and is stored as a scrypt hash (`node:crypto`, no native dependencies). A duplicate email gives 409 (thrown by `CreateUserHandler` of the `users` module), wrong credentials give 401 with an identical response for "no such user" and "wrong password". Validation (`ValidationPipe`) is registered through `APP_PIPE` in `AppModule`, not in `main.ts`, so that it also applies in e2e tests.
 
-Невалидное тело даёт 400, а `message` в ответе — массив сообщений class-validator, которые начинаются с имени поля (`email must be an email`). По этому префиксу web сопоставляет ошибки с полями формы регистрации, поэтому формат меняй осторожно. Браузер в api напрямую не ходит (web вызывает его с сервера), так что CORS в `main.ts` не включён: если появится прямой доступ из браузера, например WebSocket-сигналинг, его придётся включить.
+An invalid body gives 400, and `message` in the response is an array of class-validator messages that start with the field name (`email must be an email`). web maps errors to the registration form fields by this prefix, so change the format carefully. The browser never calls api directly (web calls it from the server), so CORS is not enabled in `main.ts`: if direct browser access appears, for example WebSocket signaling, it will have to be enabled.
 
-## Пользователи
+## Users
 
-Модуль `src/users` хранит пользователей и ничего не знает об авторизации: контроллера у него нет, только два сообщения для других модулей. `CreateUserCommand(email, passwordHash)` создаёт пользователя и возвращает `UserView`, а при занятом email бросает `ConflictException` (409). `FindUserByEmailQuery(email)` возвращает `UserView` или `null`. Пароль приходит в модуль уже хешем: хеширует и проверяет его `auth`. Таблицы `users` через `PrismaService` касается только этот модуль, остальные ссылаются на пользователя по `id` (как `ownerId` у встреч). `UserView` содержит `passwordHash`, который нужен `auth` для проверки пароля, поэтому в ответы контроллеров его отдавать нельзя. Модуль `users` не должен импортировать `auth`.
+The `src/users` module stores users and knows nothing about auth: it has no controller, only two messages for other modules. `CreateUserCommand(email, passwordHash)` creates a user and returns `UserView`, and throws `ConflictException` (409) when the email is taken. `FindUserByEmailQuery(email)` returns `UserView` or `null`. The password arrives in the module already hashed: `auth` hashes and verifies it. Only this module touches the `users` table through `PrismaService`; the others refer to a user by `id` (like `ownerId` of a meeting). `UserView` contains `passwordHash`, which `auth` needs to verify the password, so it must never be returned in controller responses. The `users` module must not import `auth`.
 
-## Встречи
+## Meetings
 
-Модуль `src/meetings`: `CreateMeetingCommand`, `ListMeetingsQuery`, `GetMeetingQuery` и их обработчики. Модель `Meeting` в Prisma (`title`, `date`, `participants` — массив строк, `ownerId`). Все роуты закрыты `JwtAuthGuard` (`src/auth/jwt-auth.guard.ts`: проверяет `Authorization: Bearer <jwt>`, кладёт `request.user = { id, email }`); текущего пользователя в контроллер отдаёт декоратор `@CurrentUser()`. Новым защищённым роутам добавляй `@UseGuards(JwtAuthGuard)`.
+The `src/meetings` module: `CreateMeetingCommand`, `ListMeetingsQuery`, `GetMeetingQuery` and their handlers. The `Meeting` model in Prisma (`title`, `date`, `participants` — an array of strings, `ownerId`). All routes are protected by `JwtAuthGuard` (`src/auth/jwt-auth.guard.ts`: checks `Authorization: Bearer <jwt>`, puts `request.user = { id, email }`); the `@CurrentUser()` decorator passes the current user to the controller. Add `@UseGuards(JwtAuthGuard)` to new protected routes.
 
-Эндпоинты: `POST /meetings` (201, тело `{ title, date, participants }`), `GET /meetings` (встречи текущего пользователя по возрастанию даты), `GET /meetings/:id` (404, если встречи нет или она чужая, чтобы не раскрывать её существование). Ответ: `{ id, title, date, participants }`. Без токена или с невалидным токеном — 401.
+Endpoints: `POST /meetings` (201, body `{ title, date, participants }`), `GET /meetings` (the current user's meetings by ascending date), `GET /meetings/:id` (404 if the meeting does not exist or belongs to someone else, so that its existence is not revealed). Response: `{ id, title, date, participants }`. Without a token or with an invalid one — 401.
 
 ## ESM
 
-- Относительные импорты пишутся с расширением `.js`, даже из `.ts`-файлов: `import { AuthModule } from './auth/auth.module.js'`.
-- Подпути пакетов без поля `exports` тоже требуют расширения, иначе TypeScript их не найдёт: `import type { App } from 'supertest/types.js'`.
-- В `src/main.ts` используется top-level `await`.
+- Relative imports are written with the `.js` extension, even from `.ts` files: `import { AuthModule } from './auth/auth.module.js'`.
+- Package subpaths without an `exports` field also need the extension, otherwise TypeScript cannot find them: `import type { App } from 'supertest/types.js'`.
+- `src/main.ts` uses top-level `await`.
 
-## Тесты и линтинг
+## Tests and linting
 
-- Vitest работает с `globals: true`: `describe`, `it`, `expect` и `vi` доступны без импорта. Типы подключены через `types` в `tsconfig.json`.
-- Алиасы из `paths` в `tsconfig.json` Vitest резолвит сам (`resolve.tsconfigPaths: true` в обоих конфигах). Плагин `vite-tsconfig-paths` не нужен.
-- ESLint 10 с `typescript-eslint` `recommendedTypeChecked`. Линтинг type-aware (`projectService`), поэтому файл вне `tsconfig.json` ESLint не разберёт. Шаблон Nest 12 по умолчанию ставит Oxlint, здесь вместо него осознанно выбран ESLint.
+- Vitest runs with `globals: true`: `describe`, `it`, `expect` and `vi` are available without imports. The types are connected through `types` in `tsconfig.json`.
+- Vitest resolves the aliases from `paths` in `tsconfig.json` itself (`resolve.tsconfigPaths: true` in both configs). The `vite-tsconfig-paths` plugin is not needed.
+- Configs. `vitest.config.ts` picks up `**/*.spec.ts` (unit), `vitest.config.e2e.ts` picks up `**/*.e2e-spec.ts` (the `test/` directory). Specs and the `test` directory are excluded from the build in `tsconfig.build.json`. Vitest runs test files in parallel (`test:debug` turns this off with `--no-file-parallelism`).
+- Structure of an e2e test. A file `test/<name>.e2e-spec.ts`: `beforeAll` starts the whole app (`Test.createTestingModule({ imports: [AppModule] })`, `createNestApplication()`, `init()`), `afterAll` calls `app.close()`. HTTP is checked through `supertest` (`request(app.getHttpServer())`), a module contract without HTTP — through the buses: `app.get(CommandBus)`, `app.get(QueryBus)` (example — `test/users.e2e-spec.ts`). `main.ts` takes no part in e2e, so register everything the app cannot work without, for example `ValidationPipe`, in `AppModule`.
+- Data in e2e. The database is shared with the dev environment and is not cleaned. Every test creates its own data with a unique email (`user-${randomUUID()}@example.com`) and checks only that data: files run in parallel, and the tables always contain other people's rows. Do not reset tables in tests.
+- ESLint 10 with `typescript-eslint` `recommendedTypeChecked`. Linting is type-aware (`projectService`), so ESLint cannot parse a file outside `tsconfig.json`. The Nest 12 template installs Oxlint by default; ESLint was chosen here deliberately instead.
