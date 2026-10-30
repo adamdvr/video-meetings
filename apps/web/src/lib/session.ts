@@ -28,6 +28,11 @@ export async function getSession(): Promise<Session | null> {
   return readSession(cookieStore.get(ACCESS_TOKEN_COOKIE)?.value);
 }
 
+export async function getAccessToken() {
+  const cookieStore = await cookies();
+  return cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+}
+
 export async function deleteSession() {
   const cookieStore = await cookies();
   cookieStore.delete(ACCESS_TOKEN_COOKIE);
