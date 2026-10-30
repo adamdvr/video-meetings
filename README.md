@@ -31,7 +31,7 @@ docker compose down           # остановить (данные сохран�
 docker compose down -v        # остановить и удалить данные
 ```
 
-Параметры по умолчанию: пользователь `postgres`, пароль `postgres`, база `video_meetings`, порт `5432`. Чтобы изменить, скопируйте `.env.example` в `.env`. Строка подключения: `postgresql://postgres:postgres@localhost:5432/video_meetings`. Приложение `api` подключается к базе через Prisma по `DATABASE_URL` из корневого `.env` (шаблон в `.env.example`, там же `JWT_SECRET`). После `docker compose up` примените миграции: `npm run db:deploy -w api`. Тесты `test:e2e` работают с этой же базой и создают в ней пользователей `user-<uuid>@example.com`.
+Параметры по умолчанию: пользователь `postgres`, пароль `postgres`, база `video_meetings`, порт `5432`. Чтобы изменить, скопируйте `.env.example` в `.env`. Строка подключения: `postgresql://postgres:postgres@localhost:5432/video_meetings`. Приложение `api` подключается к базе через Prisma по `DATABASE_URL` из корневого `.env` (шаблон в `.env.example`, там же `JWT_SECRET`). После `docker compose up` примените миграции: `npm run db:deploy -w api`. Тесты `test:e2e` работают с этой же базой, подробности в разделе «Тесты».
 
 ## Команды
 
@@ -50,6 +50,35 @@ docker compose down -v        # остановить и удалить данн�
 
 Задача только для одного приложения: `npm run dev -- --filter=web`.
 Скрипт приложения напрямую, без Turborepo: `npm run test:watch -w api`.
+
+## Тесты
+
+Тесты есть только в `api` (Vitest 4), у `web` тестового раннера пока нет.
+
+- **Unit** (`apps/api/src/**/*.spec.ts`): `npm test`. Пока ни одного нет, задача проходит и без файлов.
+- **E2E** (`apps/api/test/*.e2e-spec.ts`): `npm run test:e2e`. Поднимают приложение целиком, обращаются к нему по HTTP и через шину CQRS и пишут данные в настоящий PostgreSQL.
+
+Для e2e нужно то же окружение, что и для `npm run dev`: `nvm use`, корневой `.env` (`cp .env.example .env`, нужны `DATABASE_URL` и `JWT_SECRET`), запущенная база (`docker compose up -d --wait`) и применённые миграции (`npm run db:deploy -w api`).
+
+```bash
+npm run test:e2e -w api -- test/auth.e2e-spec.ts           # один файл
+npm run test:e2e -w api -- -t "возвращает 409"             # по имени теста
+npm run test:e2e -w api -- test/auth.e2e-spec.ts -t "409"  # файл и имя вместе
+```
+
+Что нужно знать:
+
+- **Одна база на всё.** E2E-тесты работают с той же базой, что и `npm run dev`, и ничего не удаляют. Тесты, которые что-то создают, берут уникальные данные (`user-<uuid>@example.com`), поэтому не мешают друг другу и вашим данным, но тестовые пользователи накапливаются.
+- **Кэш Turborepo.** `test` и `test:e2e` кэшируются по файлам проекта, а не по состоянию базы. Повторный запуск из корня без правок кода отвечает из кэша (`cache hit, replaying logs`, за миллисекунды) и в базу не заходит. Для честного прогона добавьте `--force`: `npm run test:e2e -- --force`, либо запустите скрипт напрямую: `npm run test:e2e -w api`.
+- **Prisma-клиент.** Прямой запуск скрипта (`-w api`) не выполняет `db:generate`: после правки `prisma/schema.prisma` сначала `npm run db:generate -w api`. Из корня через Turborepo клиент пересоберётся сам.
+
+Если e2e-тесты падают:
+
+- `Не задана переменная окружения DATABASE_URL`: нет корневого `.env`.
+- `PrismaClientKnownRequestError: Invalid … invocation` без объяснения причины: база не запущена, выполните `docker compose up -d --wait`.
+- То же и строка ``The table `public.users` does not exist``: не применены миграции, выполните `npm run db:deploy -w api`.
+
+Полная проверка перед коммитом: `npx turbo run lint check-types test test:e2e build && npm run format:check`.
 
 ## Структура
 
