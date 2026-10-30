@@ -33,7 +33,7 @@ npm run build      # production-сборка
 npm start          # build + запуск production-версий
 npm run lint       # ESLint; lint:fix — с автоисправлением
 npm run check-types # проверка типов TypeScript
-npm test            # unit-тесты (пока есть только в api)
+npm test            # unit-тесты (пока ни одного: api проверяют e2e)
 npm run test:e2e  # e2e-тесты api
 npm run format     # Prettier --write по всему репозиторию; format:check — проверка
 ```

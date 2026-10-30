@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `dev` — `nest start --watch`; `start:debug` — то же с inspector; `start` — `node dist/main`, перед ним нужен `build`.
 - `build` — `nest build` по `tsconfig.build.json`. Собирает только `src/` без спеков, результат в `dist/main.js`.
-- `test` — unit-тесты на Vitest 4 (`src/**/*.spec.ts`). Один файл: `npm run test -w api -- src/app.controller.spec.ts`. По имени теста: `npm run test -w api -- -t "Hello World"`. Также есть `test:watch` и `test:cov`.
+- `test` — unit-тесты на Vitest 4 (`src/**/*.spec.ts`). Пока ни одного нет, поведение api проверяют e2e-тесты, а `passWithNoTests` в `vitest.config.ts` не даёт задаче упасть без файлов. Один файл: `npm run test -w api -- src/<путь>.spec.ts`. По имени теста: `npm run test -w api -- -t "<имя>"`. Также есть `test:watch` и `test:cov`.
 - `test:e2e` — e2e-тесты (`test/**/*.e2e-spec.ts`, конфиг `vitest.config.e2e.ts`). Нужен запущенный PostgreSQL с применёнными миграциями (`docker compose up -d --wait`, `db:deploy`); тесты оставляют в базе пользователей `user-<uuid>@example.com`. Один файл передаётся так же, путём.
 - Генерация кода: `npm exec -w api -- nest g <schematic> <name>` (module, controller, service и т. д.). Генератор пишет ESM-код со спеками под Vitest и регистрирует модуль в `AppModule`, но вывод не отформатирован. После генерации нужен `npm run format`.
 
@@ -22,6 +22,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Клиент генерируется в `src/generated/prisma` (в git не попадает, ESLint его пропускает). Генерация: `db:generate`; она же в `postinstall` и в turbo перед остальными задачами. После изменения схемы: `db:migrate` (dev, создаёт миграцию) и `db:deploy` (применяет существующие).
 - `PrismaService` (глобальный `PrismaModule`) наследует `PrismaClient`.
 - Конфигурация читается в `src/config/configuration.ts`: он при импорте подгружает корневой `.env` (`process.loadEnvFile`, переменные окружения приоритетнее), `getConfig()` требует `DATABASE_URL` и `JWT_SECRET`. Тесты и `nest start` берут их из `.env`, без него нужны переменные в окружении.
+
+## Модули
+
+`AppModule` (`src/app.module.ts`) только собирает приложение: импортирует модули ниже и подключает глобальный `ValidationPipe` через `APP_PIPE`. Своих контроллеров и сервисов у него нет, поэтому корневой `GET /` отвечает 404. Новый модуль добавляй в его `imports`.
+
+- `PrismaModule` (`src/prisma`, глобальный): `PrismaService`, клиент БД. Импортировать его в другие модули не нужно.
+- `AuthModule` (`src/auth`): эндпоинты `/auth/*`, пароли и JWT, `JwtAuthGuard` и `@CurrentUser()`; см. «Авторизация». `JwtModule` в нём зарегистрирован как глобальный, поэтому `JwtAuthGuard` работает в любом модуле без импорта `AuthModule`. Зависит от `UsersModule`.
+- `UsersModule` (`src/users`): создание и поиск пользователей, только сообщения для других модулей; см. «Пользователи». От других прикладных модулей не зависит.
+- `MeetingsModule` (`src/meetings`): встречи текущего пользователя, `/meetings`; см. «Встречи». Из `auth` берёт `JwtAuthGuard` и `@CurrentUser()` (импорт файлов, а не модуля).
+
+Зависимости идут в одну сторону: `meetings` → `auth` → `users`. Данные другого модуля берут через шину, правила — в разделе «CQRS».
 
 ## CQRS
 
@@ -56,7 +67,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ESM
 
-- Относительные импорты пишутся с расширением `.js`, даже из `.ts`-файлов: `import { AppService } from './app.service.js'`.
+- Относительные импорты пишутся с расширением `.js`, даже из `.ts`-файлов: `import { AuthModule } from './auth/auth.module.js'`.
 - Подпути пакетов без поля `exports` тоже требуют расширения, иначе TypeScript их не найдёт: `import type { App } from 'supertest/types.js'`.
 - В `src/main.ts` используется top-level `await`.
 
