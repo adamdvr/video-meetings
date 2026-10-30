@@ -35,3 +35,7 @@ npm-debug.log*
 
 # Сгенерированный Prisma-клиент (npm run db:generate -w api)
 apps/api/src/generated/
+
+# Локальное состояние хука проверки Claude Code (.claude/hooks/verify.mjs)
+.claude/hooks/.verify-state.json
+.claude/hooks/.verify-off

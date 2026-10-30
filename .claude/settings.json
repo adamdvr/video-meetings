@@ -13,6 +13,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify.mjs\"",
+            "timeout": 300,
+            "statusMessage": "Проверяю тесты, типы и линтер изменённого кода…"
+          }
+        ]
+      }
     ]
   }
 }
