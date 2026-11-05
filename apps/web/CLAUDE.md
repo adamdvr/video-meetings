@@ -32,6 +32,8 @@ Do not restart the user's server: if it needs a restart (`globals.css` edits, ne
 
 Delete the screenshots and logs created by the check when you are done: `.playwright-mcp/` is not in `.gitignore`.
 
+All screenshots save to /screenshot folder
+
 ## Code notes
 
 - `cacheComponents` and `partialPrefetching` are enabled in `next.config.ts`. Data is dynamic by default; caching is switched on explicitly with `'use cache'` together with `cacheLife` and `cacheTag`. Accessing uncached data (`fetch`, `cookies()`, `connection()` and so on) outside `<Suspense>` breaks the route prerender. Next shows the ways to fix it in the dev overlay and in the `next build` output. The Edge runtime is not supported.
