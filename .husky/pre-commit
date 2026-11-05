@@ -1,0 +1,1 @@
+turbo run lint test test:e2e --continue=dependencies-successful --output-logs=errors-only
