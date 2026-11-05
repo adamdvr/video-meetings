@@ -1,5 +1,6 @@
 # Зависимости
 node_modules/
+/screenshot
 
 # Артефакты сборки
 .next/
