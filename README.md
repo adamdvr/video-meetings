@@ -80,6 +80,16 @@ npm run test:e2e -w api -- test/auth.e2e-spec.ts -t "409"  # файл и имя 
 
 Полная проверка перед коммитом: `npx turbo run lint check-types test test:e2e build && npm run format:check`.
 
+## Git-хук
+
+Перед каждым коммитом срабатывает `pre-commit` ([Husky](https://typicode.github.io/husky/), файл `.husky/pre-commit`): он запускает `turbo run lint test test:e2e`, и если что-то красное, коммит отменяется. Хук подключается сам при `npm install`: скрипт `prepare` выставляет `core.hooksPath`.
+
+- **Нужна база.** E2E-тесты ходят в PostgreSQL, поэтому перед коммитом кода должны быть запущены база и применены миграции (см. «Тесты»). Результат кэшируется Turborepo: коммит без правок кода отвечает из кэша за доли секунды и в базу не заходит.
+- **Проверяется рабочая копия**, а не индекс: правки, которые вы не добавили в коммит, тоже участвуют в проверке. `check-types`, `build` и `format:check` хук не запускает: их покрывает «полная проверка» из раздела «Тесты».
+- **Запустить вручную**, не делая коммит: `git hook run pre-commit` (нужен git 2.36 или новее).
+- **Пропустить**: `git commit --no-verify` для одного коммита или `HUSKY=0 git commit …`. Красный хук лучше чинить, а не обходить.
+- **Окружение.** Хук берёт ту версию Node, что активна в месте коммита (`nvm use`). Если коммит делается из среды без nvm (GUI-клиент, IDE) и хук не находит `node` или `npm`, подключите nvm в `~/.config/husky/init.sh`.
+
 ## Структура
 
 ```text
@@ -87,6 +97,7 @@ apps/
   web/      Next.js
   api/      NestJS
 packages/   общие пакеты (подключены в workspaces, пока пусто)
+.husky/     git-хук pre-commit
 docker-compose.yml   локальный PostgreSQL
 ```
 
