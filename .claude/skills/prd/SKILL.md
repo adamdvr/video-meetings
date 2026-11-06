@@ -9,7 +9,7 @@ description:  Создаю PRD-документ для фичи по станд�
 Создай PRD (Product Requirement Document) для следующей фичи:
 $ARGUMENTS
 
-Сохрани результат в файле 'docs/prd-$ARGUMENTS.md/' (используй перевод на английский и kebab-case)
+Сохрани результат в файле 'docs/prd-$ARGUMENTS.md' (используй перевод на английский и kebab-case)
 
 Если нет папки docs создай
 
