@@ -31,12 +31,13 @@ Run as `npm run <script> -w api` from the root or through turbo: `npm run <task>
 - `AuthModule` (`src/auth`): the `/auth/*` endpoints, passwords and JWT, `JwtAuthGuard` and `@CurrentUser()`; see "Auth". Its `JwtModule` is registered as global, so `JwtAuthGuard` works in any module without importing `AuthModule`. Depends on `UsersModule`.
 - `UsersModule` (`src/users`): creating and finding users, messages for other modules only; see "Users". Does not depend on other feature modules.
 - `MeetingsModule` (`src/meetings`): the current user's meetings, `/meetings`; see "Meetings". Takes `JwtAuthGuard` and `@CurrentUser()` from `auth` (a file import, not a module import).
+- `FilesModule` (`src/files`): the files of a meeting, `/meetings/:id/files`; see "Files". Checks access to the meeting through the bus of `meetings` and imports `MeetingsModule`; takes `JwtAuthGuard` and `@CurrentUser()` from `auth` the same way as `meetings`.
 
-Dependencies go one way: `meetings` → `auth` → `users`. Another module's data is obtained through the bus, the rules are in the "CQRS" section.
+Dependencies go one way: `files` → `meetings` → `auth` → `users`. Another module's data is obtained through the bus, the rules are in the "CQRS" section.
 
 ## CQRS
 
-Business operations of api are built on `@nestjs/cqrs` (modules `auth`, `users` and `meetings`). A controller has no logic: it takes a DTO, builds a message and sends it to the bus (`CommandBus` or `QueryBus`), and returns whatever the handler returned.
+Business operations of api are built on `@nestjs/cqrs` (modules `auth`, `users`, `meetings` and `files`). A controller has no logic: it takes a DTO, builds a message and sends it to the bus (`CommandBus` or `QueryBus`), and returns whatever the handler returned. The one exception is the file upload: a message holds primitives only, so the request body stream does not go into it (see "Files").
 
 - **A command** changes state (creates, updates, deletes), **a query** only reads. This is the criterion, not the HTTP method: `POST /auth/login` writes nothing to the database, so it is a `LoginQuery`.
 - **A message** is a class with `public readonly` constructor parameters, primitives and dates only, no logic. Names: `<Verb><Entity>Command` and `<Verb><Entity>Query`, files `commands/*.command.ts` and `queries/*.query.ts`.
@@ -61,9 +62,31 @@ The `src/users` module stores users and knows nothing about auth: it has no cont
 
 ## Meetings
 
-The `src/meetings` module: `CreateMeetingCommand`, `ListMeetingsQuery`, `GetMeetingQuery` and their handlers. The `Meeting` model in Prisma (`title`, `date`, `participants` — an array of strings, `ownerId`). All routes are protected by `JwtAuthGuard` (`src/auth/jwt-auth.guard.ts`: checks `Authorization: Bearer <jwt>`, puts `request.user = { id, email }`); the `@CurrentUser()` decorator passes the current user to the controller. Add `@UseGuards(JwtAuthGuard)` to new protected routes.
+The `src/meetings` module: `CreateMeetingCommand`, `ListMeetingsQuery`, `GetMeetingQuery` and their handlers. `files` sends `GetMeetingQuery` to check access to a meeting, so it extends `Query<MeetingView>`. The `Meeting` model in Prisma (`title`, `date`, `participants` — an array of strings, `ownerId`). All routes are protected by `JwtAuthGuard` (`src/auth/jwt-auth.guard.ts`: checks `Authorization: Bearer <jwt>`, puts `request.user = { id, email }`); the `@CurrentUser()` decorator passes the current user to the controller. Add `@UseGuards(JwtAuthGuard)` to new protected routes.
 
 Endpoints: `POST /meetings` (201, body `{ title, date, participants }`), `GET /meetings` (the current user's meetings by ascending date), `GET /meetings/:id` (404 if the meeting does not exist or belongs to someone else, so that its existence is not revealed). Response: `{ id, title, date, participants }`. Without a token or with an invalid one — 401.
+
+## Files
+
+The `src/files` module keeps the files of a meeting on the local disk and their records in the `meeting_files` table (model `MeetingFile`: `originalName`, `mimeType`, `size` as `BigInt`, `createdAt`; the records are deleted together with the meeting). All routes are under `JwtAuthGuard`. Access is checked by sending `GetMeetingQuery` of `meetings`, so a foreign or nonexistent meeting gives 404, as in `meetings`.
+
+Endpoints:
+
+- `POST /meetings/:id/files` (201) takes the raw file as the body. `Content-Type` must be `application/octet-stream`, anything else gives 415: with another type the global JSON parser could read the body before the controller. The name comes in `X-File-Name` as `encodeURIComponent` of UTF-8; it is stored NFC-normalized, and an empty or badly encoded name, a name longer than 255 characters or one with `/`, `\` or control characters gives 400. Response: `{ id, name, size, mimeType, createdAt }`.
+- `GET /meetings/:id/files` returns the meeting's files, newest first (`createdAt desc, id desc`). Files with the same name are separate records.
+- `GET /meetings/:id/files/:fileId` sends the file through Express `res.download()`: `Content-Disposition: attachment` with `filename*` for non-ASCII names, Range requests (206), `ETag`. `Content-Type` comes from the record, plus `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-cache`. A foreign or nonexistent file gives 404, as does a file of another meeting of the same user. `StreamableFile` is not used: it does not support Range.
+
+Storage:
+
+- `FileStorage` (`file-storage.ts`) writes the body with `pipeline` into `<FILES_DIR>/.tmp/<id>.part` and then renames it to `<FILES_DIR>/<meetingId>/<id>`. The record is created only after that, by `CreateMeetingFileCommand`; if the command fails, the controller deletes the file. A stream that fails or is aborted removes its `.part`. The name on disk is always the generated id, never the name from the client.
+- `FILES_DIR` comes from the root `.env` (`getConfig().filesDir`). By default it is `apps/api/storage`, computed from the location of `configuration.ts`, not from the working directory. The directory is in `.gitignore`. The e2e tests write into the same directory and do not clean it up.
+- The type comes from the file extension through the table of PRD formats in `file-formats.ts`; an unknown extension gives `application/octet-stream`. Rejecting other formats, empty and oversized files belongs to a later phase of `docs/plan-meeting-file-upload.md`.
+
+Messages: `CreateMeetingFileCommand(meetingId, fileId, name, size)`, `ListMeetingFilesQuery(ownerId, meetingId)` and `GetMeetingFileQuery(ownerId, meetingId, fileId)`; the last one returns the view plus the path on disk. They extend `Command<…>` and `Query<…>` for typed results. The upload is the one place where a controller works with a stream: it sends `GetMeetingQuery` before reading the body, passes the request to `FileStorage`, and sends `CreateMeetingFileCommand` with primitives once the file is in place.
+
+`FilesModule` raises the `requestTimeout` of the HTTP server to one hour in `onApplicationBootstrap`: with Node's default of 300 s, any request whose body takes longer than five minutes to arrive is cut off with 408. It is set there and not in `main.ts` so that it also applies in e2e tests; `headersTimeout` stays at 60 s.
+
+`test/files.e2e-spec.ts` starts the app with `app.listen(0)` instead of `init()`: one test sends half of a body over raw `node:http` and checks that no record exists yet. Downloads are read with `.responseType('blob')`, so the body is a `Buffer` whatever the content type.
 
 ## ESM
 
