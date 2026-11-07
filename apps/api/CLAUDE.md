@@ -79,3 +79,7 @@ Endpoints: `POST /meetings` (201, body `{ title, date, participants }`), `GET /m
 - Structure of an e2e test. A file `test/<name>.e2e-spec.ts`: `beforeAll` starts the whole app (`Test.createTestingModule({ imports: [AppModule] })`, `createNestApplication()`, `init()`), `afterAll` calls `app.close()`. HTTP is checked through `supertest` (`request(app.getHttpServer())`), a module contract without HTTP — through the buses: `app.get(CommandBus)`, `app.get(QueryBus)` (example — `test/users.e2e-spec.ts`). `main.ts` takes no part in e2e, so register everything the app cannot work without, for example `ValidationPipe`, in `AppModule`.
 - Data in e2e. The database is shared with the dev environment and is not cleaned. Every test creates its own data with a unique email (`user-${randomUUID()}@example.com`) and checks only that data: files run in parallel, and the tables always contain other people's rows. Do not reset tables in tests.
 - ESLint 10 with `typescript-eslint` `recommendedTypeChecked`. Linting is type-aware (`projectService`), so ESLint cannot parse a file outside `tsconfig.json`. The Nest 12 template installs Oxlint by default; ESLint was chosen here deliberately instead.
+
+## File upload
+
+Use this research for it: @../../docs/research-meeting-upload.md
