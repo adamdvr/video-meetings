@@ -15,7 +15,7 @@ description:  Создает github issues и milestones из файла пла�
 2. Для каждой фазы создай milestone: 
   `gh api repos/:owner/:repo/milestones -f title="Фаза N: название"`
 3. Для каждой задачи в фазе создай Issue:
-  `gh issue create --title "..." --body "..." --label "..." --milestone "..."`
+  `gh issue create --title "..." --body "..." --label "..." --milestone "..." --project "video-meetings"`
 
 ## Формат Issue
 
