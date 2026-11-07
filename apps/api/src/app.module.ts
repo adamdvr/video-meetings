@@ -1,12 +1,13 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { APP_PIPE } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module.js';
+import { FilesModule } from './files/files.module.js';
 import { MeetingsModule } from './meetings/meetings.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, MeetingsModule],
+  imports: [PrismaModule, AuthModule, UsersModule, MeetingsModule, FilesModule],
   providers: [
     // Глобальная валидация тел запросов по DTO; подключена здесь, чтобы работать и в e2e-тестах.
     {
