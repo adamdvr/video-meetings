@@ -29,7 +29,21 @@ model Meeting {
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
+  files        MeetingFile[]
 
   @@index([ownerId])
   @@map("meetings")
+}
+
+model MeetingFile {
+  id           String   @id
+  meetingId    String   @map("meeting_id")
+  meeting      Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         BigInt
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([meetingId, createdAt(sort: Desc)])
+  @@map("meeting_files")
 }

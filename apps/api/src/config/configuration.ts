@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Переменные окружения лежат в корневом .env (рядом с docker-compose.yml).
@@ -24,6 +25,10 @@ export function getConfig() {
     jwtSecret: required('JWT_SECRET'),
     jwtExpiresInSeconds: Number(
       process.env.JWT_EXPIRES_IN_SECONDS ?? 60 * 60 * 24 * 7,
+    ),
+    filesDir: resolve(
+      process.env.FILES_DIR ??
+        fileURLToPath(new URL('../../storage', import.meta.url)),
     ),
   };
 }
