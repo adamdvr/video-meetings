@@ -5,7 +5,8 @@
     "API_URL",
     "DATABASE_URL",
     "JWT_SECRET",
-    "JWT_EXPIRES_IN_SECONDS"
+    "JWT_EXPIRES_IN_SECONDS",
+    "FILES_DIR"
   ],
   "tasks": {
     "db:generate": {
