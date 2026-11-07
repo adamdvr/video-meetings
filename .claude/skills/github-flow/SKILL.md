@@ -1,0 +1,91 @@
+---
+name: github-flow
+description: Веду ветки и pull request по GitHub Flow — создаю ветку от свежего main, пушу, открываю и обновляю PR, после слияния убираю ветку. Использую, когда нужно начать задачу в отдельной ветке, запушить изменения, открыть или слить PR.
+---
+
+# GitHub Flow
+
+Запрос: $ARGUMENTS
+
+Если запрос пустой, определи шаг по `git status`, текущей ветке и `gh pr view`, затем выполни только нужные шаги.
+
+Модель — GitHub Flow: `main` всегда рабочий, любая работа идёт в короткой ветке от `main` и попадает в него только через pull request. Размер и описание PR — по Google Engineering Practices. Коммиты — по разделу «Commits» в `CLAUDE.md`, этот скилл их не меняет.
+
+## 1. Ветка
+
+- Одна ветка — одна задача: фаза плана, исправление, правка документации. Несвязанные изменения — в разные ветки.
+- Имя `<тип>/<тема>`. Тип — как у коммита: `feat`, `fix`, `docs`, `refactor`, `chore`. Тема — 2–5 английских слов в kebab-case, при необходимости с областью: `feat/api-meeting-files`, `fix/web-login-redirect`, `docs/plan-meeting-file-upload`.
+- Создание:
+
+  ```bash
+  git switch main
+  git pull --ff-only
+  git switch -c <тип>/<тема>
+  ```
+
+  Незакоммиченные правки `git switch` переносит в новую ветку. Если среди них есть правки не по задаче, спроси пользователя.
+
+- Не работай прямо в `main` и не ответвляйся от другой неслитой ветки без просьбы пользователя.
+
+## 2. Коммиты и пуш
+
+- Коммиты — по `CLAUDE.md`. pre-commit-хук запускает lint и тесты, для e2e нужна база.
+- Первый пуш — `git push -u origin <ветка>`, дальше — `git push`.
+- Нельзя пушить в `main`, использовать `--no-verify` и `--force`. Если историю ветки переписали по просьбе пользователя (rebase), пушь только через `git push --force-with-lease`.
+
+## 3. Pull request
+
+- Если PR для ветки уже есть (`gh pr view`), не создавай второй — пушь коммиты в него.
+- Перед открытием прогони «Full check» из `CLAUDE.md`: CI в репозитории нет, а хук не проверяет типы, сборку и формат.
+- Размер — одно самодостаточное изменение. Ориентир Google: около 100 строк — нормально, около 1000 — слишком много; lock-файлы и миграции не в счёт. Фаза плана — один PR. Если diff вышел больше, предложи пользователю разделить его, например вынести рефакторинг в отдельный PR.
+- Заголовок — как тема коммита, в стиле истории: `<тип>(<область>): <что сделано>`, например `feat(api): хранить и отдавать файлы встречи`. Он должен быть понятен без чтения кода: «Фаза 1» не подходит, Google приводит «Phase 1.» как пример плохого описания. Если в PR один коммит, заголовок совпадает с его темой.
+- Описание:
+
+  ```markdown
+  ## Что и зачем
+
+  Что меняется и почему; решения, которых не видно в коде; ссылки на PRD и план.
+
+  ## Как проверено
+
+  - Команды и ручные проверки.
+
+  Closes #12
+  Closes #13
+  ```
+
+  Каждая закрываемая задача — отдельной строкой `Closes #N`. Ключевое слово английское и работает только для PR в `main`. Номера задач фазы: `gh issue list --milestone "<milestone>" --json number,title`. Строк про Claude не добавляй.
+
+- Открытие:
+
+  ```bash
+  gh pr create --base main --title "<заголовок>" --body-file - <<'EOF'
+  <описание>
+  EOF
+  ```
+
+  Незаконченную работу открывай с `--draft`. Покажи пользователю ссылку на PR.
+
+- Если смысл PR изменился, обнови описание: `gh pr edit <номер> --body-file -`.
+
+## 4. Слияние и уборка
+
+- Сливай только по явной просьбе пользователя:
+
+  ```bash
+  gh pr merge <номер> --rebase --delete-branch
+  git switch main
+  git pull --ff-only
+  ```
+
+  `--rebase` сохраняет отдельные коммиты и линейную историю `main`. Squash склеил бы код и документацию в один коммит вопреки правилам коммитов.
+
+- Если GitHub не даёт слить из-за конфликтов: `git fetch origin`, `git rebase origin/main`, проверки и `git push --force-with-lease`. Переписывать историю можно только с согласия пользователя.
+- Если PR слили в браузере, локальная ветка останется. Убедись, что `gh pr view <номер> --json state -q .state` выводит `MERGED`, и удали её через `git branch -D <ветка>`. Обычный `-d` откажет: после rebase у коммитов в `main` другие хэши.
+
+## Источники
+
+- GitHub Flow: https://docs.github.com/en/get-started/using-github/github-flow
+- Google Engineering Practices, описание и размер изменений: https://google.github.io/eng-practices/review/developer/cl-descriptions.html, https://google.github.io/eng-practices/review/developer/small-cls.html
+- Связь PR с задачами: https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue
+- Способы слияния: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/about-merge-methods-on-github
