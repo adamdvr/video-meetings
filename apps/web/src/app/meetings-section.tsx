@@ -1,6 +1,7 @@
 import Calendar from '@gravity-ui/icons/Calendar';
 import Persons from '@gravity-ui/icons/Persons';
 import { Alert, Card } from '@heroui/react';
+import Link from 'next/link';
 import {
   getMeetings,
   LATEST_MEETINGS_COUNT,
@@ -55,7 +56,7 @@ export async function MeetingsSection() {
           <span className="font-normal text-muted">({meetings.length})</span>
         </h2>
         <Card className="mt-4 gap-0 p-0">
-          <ul className="divide-y divide-separator">
+          <ul className="divide-y divide-separator rounded-[inherit]">
             {sorted.map((meeting) => (
               <MeetingRow key={meeting.id} meeting={meeting} />
             ))}
@@ -84,12 +85,23 @@ function ParticipantsLine({ count }: { count: number }) {
   );
 }
 
+function MeetingLink({ meeting }: { meeting: Meeting }) {
+  return (
+    <Link
+      className="outline-none after:absolute after:inset-0 after:rounded-[inherit]"
+      href={`/meetings/${meeting.id}`}
+    >
+      {meeting.title}
+    </Link>
+  );
+}
+
 function MeetingCard({ meeting }: { meeting: Meeting }) {
   return (
-    <Card className="h-full">
+    <Card className="relative h-full transition-colors outline-focus hover:bg-surface-secondary has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 motion-reduce:transition-none">
       <Card.Header>
         <Card.Title className="text-base leading-6 font-semibold wrap-anywhere">
-          {meeting.title}
+          <MeetingLink meeting={meeting} />
         </Card.Title>
       </Card.Header>
       <Card.Content className="gap-2 text-sm text-muted">
@@ -102,8 +114,10 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
 
 function MeetingRow({ meeting }: { meeting: Meeting }) {
   return (
-    <li className="flex flex-col gap-2 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-      <p className="min-w-0 font-medium wrap-anywhere">{meeting.title}</p>
+    <li className="relative flex flex-col gap-2 px-4 py-4 transition-colors outline-focus -outline-offset-2 first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-secondary has-[a:focus-visible]:outline-2 motion-reduce:transition-none sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+      <p className="min-w-0 font-medium wrap-anywhere">
+        <MeetingLink meeting={meeting} />
+      </p>
       <div className="flex flex-col gap-1.5 text-sm text-muted sm:flex-row sm:gap-x-6 lg:grid lg:shrink-0 lg:grid-cols-[15rem_9rem]">
         <DateLine iso={meeting.date} />
         <ParticipantsLine count={meeting.participants.length} />

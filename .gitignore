@@ -13,6 +13,11 @@ next-env.d.ts
 # Тесты
 coverage/
 
+# Артефакты Playwright (apps/web)
+test-results/
+playwright-report/
+blob-report/
+
 # Turborepo
 .turbo/
 

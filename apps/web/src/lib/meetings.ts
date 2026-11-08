@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { apiFetch } from './api';
 import { getAccessToken } from './session';
 
@@ -33,6 +34,33 @@ export async function getMeetings(): Promise<Meeting[] | null> {
     return null;
   }
 }
+
+export const getMeeting = cache(
+  async (id: string): Promise<Meeting | 'not-found' | null> => {
+    const accessToken = await getAccessToken();
+    if (!accessToken) return null;
+
+    try {
+      const response = await apiFetch(`/meetings/${encodeURIComponent(id)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.status === 404) return 'not-found';
+      if (!response.ok) {
+        console.error(`GET /meetings/:id: api ответил ${response.status}`);
+        return null;
+      }
+      const meeting: unknown = await response.json();
+      if (typeof meeting !== 'object' || meeting === null) {
+        console.error('GET /meetings/:id: ответ api не является встречей');
+        return null;
+      }
+      return meeting as Meeting;
+    } catch (error) {
+      console.error('GET /meetings/:id: не удалось получить встречу', error);
+      return null;
+    }
+  },
+);
 
 export function sortByDateDesc(meetings: Meeting[]) {
   return [...meetings].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
