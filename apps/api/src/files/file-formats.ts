@@ -21,7 +21,7 @@ const MIME_TYPES = new Map([
     '.xlsx',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ],
-  ['.txt', 'text/plain; charset=utf-8'],
+  ['.txt', 'text/plain'],
   ['.png', 'image/png'],
   ['.jpg', 'image/jpeg'],
   ['.jpeg', 'image/jpeg'],

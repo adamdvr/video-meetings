@@ -7,6 +7,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { PrismaService } from './../src/prisma/prisma.service.js';
 
 const PASSWORD = 'correct-horse-battery';
 
@@ -157,6 +158,40 @@ describe('Files (e2e)', () => {
       ]);
     });
 
+    it('возвращает 404, если встречу удалили во время загрузки', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const data = pdf(64 * 1024);
+      const half = data.length / 2;
+      const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
+
+      const upload = httpRequest({
+        port,
+        method: 'POST',
+        path: `/meetings/${meetingId}/files`,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': data.length,
+          'X-File-Name': encodeURIComponent('Запись.pdf'),
+        },
+      });
+      const status = new Promise<number | undefined>((resolve, reject) => {
+        upload.on('response', (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        });
+        upload.on('error', reject);
+      });
+      upload.write(data.subarray(0, half));
+      await delay(100);
+
+      await app.get(PrismaService).meeting.delete({ where: { id: meetingId } });
+      upload.end(data.subarray(half));
+
+      expect(await status).toBe(404);
+    });
+
     it('возвращает 404 для встречи другого пользователя', async () => {
       const owner = await registerUser();
       const other = await registerUser();
@@ -292,6 +327,21 @@ describe('Files (e2e)', () => {
       expect(headers['content-type']).toBe('application/pdf');
       expect(headers['content-disposition']).toMatch(/^attachment;/);
       expect(dispositionFileName(headers['content-disposition'])).toBe(name);
+    });
+
+    it('отдаёт текстовый файл с кодировкой в Content-Type', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const data = Buffer.from('Повестка встречи');
+
+      const file = await uploaded(token, meetingId, 'Повестка.txt', data);
+      const res = await downloadFile(token, meetingId, file.id).expect(200);
+
+      expect(file.mimeType).toBe('text/plain');
+      expect((res.headers as Record<string, string>)['content-type']).toBe(
+        'text/plain; charset=utf-8',
+      );
+      expect(res.body as Buffer).toEqual(data);
     });
 
     it('возвращает 404 для файла встречи другого пользователя', async () => {
