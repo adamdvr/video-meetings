@@ -12,7 +12,7 @@ Monorepo of a video meetings service on npm workspaces and Turborepo. Two indepe
 - `apps/api` — NestJS backend, port 4000 (see `apps/api/CLAUDE.md`)
 - `packages/*` — reserved for shared packages. The glob is declared in `workspaces` of the root `package.json`; the directory does not exist yet.
 
-Tool versions are newer than your training data, so check the docs of the installed packages instead of relying on memory: Next.js 16.4, NestJS 12, Turborepo 2.11, npm 11, Vitest 4, ESLint 9 and 10, TypeScript 5.9 and 6.0.
+Tool versions are newer than your training data, so check the docs of the installed packages instead of relying on memory: Next.js 16.4, NestJS 12, Turborepo 2.11, npm 11, Vitest 4, Playwright 1.65, ESLint 9 and 10, TypeScript 5.9 and 6.0.
 
 ## Environment
 
@@ -46,7 +46,7 @@ npm run format     # Prettier --write for the whole repository; format:check onl
 
 ## Monorepo layout
 
-- **Turborepo** runs only the tasks declared in `tasks` in `turbo.json`. The `db:generate` task (generates the Prisma client into `apps/api/src/generated`) runs before `build`, `lint`, `check-types`, `test` and `test:e2e`. Declare a new script that must work through turbo there first, otherwise turbo fails with `Could not find task`. `format` and `format:check` are plain root scripts, not turbo tasks.
+- **Turborepo** runs only the tasks declared in `tasks` in `turbo.json`. The `db:generate` task (generates the Prisma client into `apps/api/src/generated`) runs before `build`, `lint`, `check-types`, `test` and `test:e2e` (web's `test:e2e` gets it through its dependency on `api#test:e2e`). Declare a new script that must work through turbo there first, otherwise turbo fails with `Could not find task`. `format` and `format:check` are plain root scripts, not turbo tasks.
 - **Environment variables.** turbo runs in strict mode: tasks do not see shell variables until they are listed in `turbo.json` (`env`, `globalEnv`, `passThroughEnv`). `API_URL`, `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS`, `FILES_DIR` and `UPLOAD_IDLE_TIMEOUT_MS` are passed through now (`globalPassThroughEnv`). That is why `PORT=5000 npm run dev` does not change the port. The apps read `.env` files themselves: api takes the root `.env`, web (Next.js) only `.env*` from `apps/web`.
 - **web → api.** The browser never calls api directly: web calls it from the server (Server Actions and the like) over REST. The address comes from the server-side variable `API_URL` (default `http://localhost:4000`); web keeps the JWT in the httpOnly cookie `access_token`. That is why CORS is not enabled in api. Details are in `apps/web/CLAUDE.md`.
 - **Prettier.** A single `.prettierrc` in the root (`singleQuote`, `trailingComma: all`), the exact version in the root `package.json`. Do not add Prettier configs to the apps. Prettier skips the paths from the root `.gitignore` and `.prettierignore`. Files changed through Edit/Write are formatted automatically by a Claude Code hook (`.claude/hooks/format.mjs`). The hook does not see changes made through Bash, for example the output of `nest g`: run `npm run format` after them.
