@@ -17,6 +17,14 @@ const FORWARDED_RESPONSE_HEADERS = [
   'x-content-type-options',
 ];
 
+function copyHeaders(from: Headers, to: Headers, names: string[]) {
+  for (const name of names) {
+    const value = from.get(name);
+    if (value) to.set(name, value);
+  }
+  return to;
+}
+
 const textResponse = (text: string, status: number) =>
   new Response(text, {
     status,
@@ -31,11 +39,11 @@ export async function GET(
   if (!readSession(token)) redirect('/login');
   const { id, fileId } = await params;
 
-  const headers = new Headers({ authorization: `Bearer ${token}` });
-  for (const name of FORWARDED_REQUEST_HEADERS) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
+  const headers = copyHeaders(
+    request.headers,
+    new Headers({ authorization: `Bearer ${token}` }),
+    FORWARDED_REQUEST_HEADERS,
+  );
 
   let upstream: Response;
   try {
@@ -58,13 +66,13 @@ export async function GET(
     return textResponse('Не удалось скачать файл', upstream.status);
   }
 
-  const response = new Headers();
-  for (const name of FORWARDED_RESPONSE_HEADERS) {
-    const value = upstream.headers.get(name);
-    if (value) response.set(name, value);
-  }
+  const responseHeaders = copyHeaders(
+    upstream.headers,
+    new Headers(),
+    FORWARDED_RESPONSE_HEADERS,
+  );
   return new Response(upstream.body, {
     status: upstream.status,
-    headers: response,
+    headers: responseHeaders,
   });
 }
