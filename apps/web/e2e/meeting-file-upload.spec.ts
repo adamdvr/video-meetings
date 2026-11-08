@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -11,6 +11,7 @@ import {
   type Meeting,
 } from './api';
 import { TIME_ZONE } from './dates';
+import { fileBytes } from './file-bytes';
 
 test.use({ locale: 'ru-RU', timezoneId: TIME_ZONE });
 
@@ -205,7 +206,8 @@ test.describe('Загрузка файлов встречи', () => {
 
     const names = ['Запись 1.mp4', 'Запись 2.mp4'];
     const paths = names.map((name) => testInfo.outputPath(name));
-    for (const path of paths) await writeFile(path, randomBytes(1024 * 1024));
+    for (const path of paths)
+      await writeFile(path, fileBytes('mp4', 1024 * 1024));
 
     const restore = await slowDownUploads(page, 256 * 1024);
     await chooseFiles(page, paths);
@@ -271,14 +273,14 @@ test.describe('Загрузка файлов встречи', () => {
     await openMeeting(page, meeting);
 
     const files = [
-      ['500 КБ.bin', 500 * 1024],
-      ['5 МБ.bin', 5 * 1024 * 1024],
-      ['50 МБ.bin', 50 * 1024 * 1024],
+      ['500 КБ.pdf', 500 * 1024],
+      ['5 МБ.pdf', 5 * 1024 * 1024],
+      ['50 МБ.pdf', 50 * 1024 * 1024],
     ] as const;
     const hashes = new Map<string, string>();
     const paths: string[] = [];
     for (const [name, size] of files) {
-      const body = randomBytes(size);
+      const body = fileBytes('pdf', size);
       const path = testInfo.outputPath(name);
       await writeFile(path, body);
       hashes.set(name, sha256(body));
