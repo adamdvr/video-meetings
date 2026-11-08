@@ -31,3 +31,6 @@ const MIME_TYPES = new Map([
 
 export const mimeTypeOf = (fileName: string) =>
   MIME_TYPES.get(extname(fileName).toLowerCase()) ?? 'application/octet-stream';
+
+export const contentTypeOf = (mimeType: string) =>
+  mimeType.startsWith('text/') ? `${mimeType}; charset=utf-8` : mimeType;

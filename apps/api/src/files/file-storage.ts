@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, rename, rm } from 'node:fs/promises';
+import { access, mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -42,6 +42,15 @@ export class FileStorage {
 
   path(meetingId: string, fileId: string) {
     return join(this.dir, meetingId, fileId);
+  }
+
+  async exists(meetingId: string, fileId: string) {
+    try {
+      await access(this.path(meetingId, fileId));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async remove(meetingId: string, fileId: string) {
