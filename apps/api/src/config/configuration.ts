@@ -27,7 +27,7 @@ export function getConfig() {
       process.env.JWT_EXPIRES_IN_SECONDS ?? 60 * 60 * 24 * 7,
     ),
     filesDir: resolve(
-      process.env.FILES_DIR ??
+      process.env.FILES_DIR ||
         fileURLToPath(new URL('../../storage', import.meta.url)),
     ),
   };
