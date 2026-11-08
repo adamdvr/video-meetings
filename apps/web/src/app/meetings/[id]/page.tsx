@@ -9,7 +9,7 @@ import { MeetingDate } from '@/app/meeting-date';
 import { RetryButton } from '@/app/retry-button';
 import { AppHeader } from '@/components/app-header';
 import { getMeetingFiles } from '@/lib/meeting-files';
-import { getMeeting, type Meeting } from '@/lib/meetings';
+import { getMeeting, MeetingLookup, type Meeting } from '@/lib/meetings';
 import {
   MeetingFiles,
   MeetingFilesPlaceholder,
@@ -21,7 +21,8 @@ export async function generateMetadata({
 }: PageProps<'/meetings/[id]'>): Promise<Metadata> {
   const { id } = await params;
   const meeting = await getMeeting(id);
-  if (meeting === 'not-found') return { title: 'Встреча не найдена' };
+  if (meeting === MeetingLookup.NotFound)
+    return { title: 'Встреча не найдена' };
   return { title: meeting?.title ?? 'Встреча' };
 }
 
@@ -52,7 +53,7 @@ async function MeetingDetails({
   const { id } = await params;
   void getMeetingFiles(id);
   const meeting = await getMeeting(id);
-  if (meeting === 'not-found') return <NotFound />;
+  if (meeting === MeetingLookup.NotFound) return <NotFound />;
   if (!meeting) return <LoadError />;
 
   return (
