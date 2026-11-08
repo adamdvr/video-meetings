@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
-import { ACCESS_TOKEN_COOKIE, readSession } from '@/lib/access-token';
-import { API_URL } from '@/lib/api';
+import { API_URL, authHeader } from '@/lib/api';
+import { getApiToken } from '@/lib/session';
 
 const FORWARDED_REQUEST_HEADERS = ['range', 'if-range'];
 
@@ -35,13 +35,13 @@ export async function GET(
   request: NextRequest,
   { params }: RouteContext<'/meetings/[id]/files/[fileId]'>,
 ) {
-  const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (!readSession(token)) redirect('/login');
+  const token = await getApiToken();
+  if (!token) redirect('/login');
   const { id, fileId } = await params;
 
   const headers = copyHeaders(
     request.headers,
-    new Headers({ authorization: `Bearer ${token}` }),
+    new Headers(authHeader(token)),
     FORWARDED_REQUEST_HEADERS,
   );
 

@@ -9,6 +9,10 @@ export function apiFetch(path: string, init?: RequestInit) {
   });
 }
 
+export const authHeader = (token: string) => ({
+  authorization: `Bearer ${token}`,
+});
+
 export async function readJson(response: Response) {
   const body: unknown = await response.json().catch(() => null);
   return typeof body === 'object' && body !== null

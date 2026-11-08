@@ -4,8 +4,8 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import type { NextRequest } from 'next/server';
-import { ACCESS_TOKEN_COOKIE, readSession } from '@/lib/access-token';
-import { API_URL } from '@/lib/api';
+import { API_URL, authHeader } from '@/lib/api';
+import { getApiToken } from '@/lib/session';
 
 const FORWARDED_RESPONSE_HEADERS = ['content-type', 'location'];
 
@@ -40,10 +40,8 @@ export async function POST(
   request: NextRequest,
   { params }: RouteContext<'/meetings/[id]/files'>,
 ) {
-  const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (!readSession(token)) {
-    return jsonError('Unauthorized', 401);
-  }
+  const token = await getApiToken();
+  if (!token) return jsonError('Unauthorized', 401);
   if (isCrossOrigin(request)) return jsonError('Forbidden', 403);
 
   const length = request.headers.get('content-length');
@@ -55,7 +53,7 @@ export async function POST(
     upstream = await sendToApi(
       new URL(`${API_URL}/meetings/${encodeURIComponent(id)}/files`),
       {
-        authorization: `Bearer ${token}`,
+        ...authHeader(token),
         'content-type': 'application/octet-stream',
         'content-length': length,
         'x-file-name': request.headers.get('x-file-name') ?? '',
