@@ -9,7 +9,7 @@ description: Веду ветки и pull request по GitHub Flow — созда
 
 Если запрос пустой, определи шаг по `git status`, текущей ветке и `gh pr view`, затем выполни только нужные шаги.
 
-Модель — GitHub Flow: `main` всегда рабочий, любая работа идёт в короткой ветке от `main` и попадает в него только через pull request. Размер и описание PR — по Google Engineering Practices. Коммиты — по разделу «Commits» в `CLAUDE.md`, этот скилл их не меняет.
+Модель — GitHub Flow: `main` всегда рабочий, любая работа идёт в короткой ветке от `main` и попадает в него только через pull request. Размер и описание PR — по Google Engineering Practices, план тестирования — по руководству Phabricator. Коммиты — по разделу «Commits» в `CLAUDE.md`, этот скилл их не меняет.
 
 ## 1. Ветка
 
@@ -46,13 +46,18 @@ description: Веду ветки и pull request по GitHub Flow — созда
 
   Что меняется и почему; решения, которых не видно в коде; ссылки на PRD и план.
 
-  ## Как проверено
+  ## План тестирования
 
-  - Команды и ручные проверки.
+  Подготовка: что запустить перед проверкой (база, миграции, переменные окружения).
+
+  - [x] Команда или ручной сценарий → ожидаемый результат.
+  - [ ] Невыполненная проверка → почему её не выполнили.
 
   Closes #12
   Closes #13
   ```
+
+  План тестирования — повторяемые шаги, по которым ревьюер, не знакомый с изменением, проверит его сам: точные команды, ручные сценарии и ожидаемый результат, у замеров — фактические числа. Это не отчёт «всё проверено». Выполненные пункты отмечай `[x]`; то, что проверить не удалось, оставь `[ ]` с причиной. «Full check» входит в план всегда.
 
   Каждая закрываемая задача — отдельной строкой `Closes #N`. Ключевое слово английское и работает только для PR в `main`. Номера задач фазы: `gh issue list --milestone "<milestone>" --json number,title`. Строк про Claude не добавляй.
 
@@ -87,5 +92,6 @@ description: Веду ветки и pull request по GitHub Flow — созда
 
 - GitHub Flow: https://docs.github.com/en/get-started/using-github/github-flow
 - Google Engineering Practices, описание и размер изменений: https://google.github.io/eng-practices/review/developer/cl-descriptions.html, https://google.github.io/eng-practices/review/developer/small-cls.html
+- План тестирования: https://secure.phabricator.com/book/phabricator/article/differential_test_plans/
 - Связь PR с задачами: https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue
 - Способы слияния: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/about-merge-methods-on-github
