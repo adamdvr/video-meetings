@@ -1,11 +1,13 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   createMeeting,
   registerUser,
   signIn,
   uploadFile,
+  WEB_URL,
   type Meeting,
 } from './api';
 import { TIME_ZONE } from './dates';
@@ -47,6 +49,29 @@ async function dropFiles(page: Page, target: Locator, files: string[]) {
     await cdp.send('Input.dispatchDragEvent', { type, x, y, data });
   }
   await cdp.detach();
+}
+
+function postChunked(path: string, accessToken: string) {
+  return new Promise<number>((resolve, reject) => {
+    const outgoing = httpRequest(
+      `${WEB_URL}${path}`,
+      {
+        method: 'POST',
+        headers: {
+          Cookie: `access_token=${accessToken}`,
+          'Content-Type': 'application/octet-stream',
+          'Transfer-Encoding': 'chunked',
+          'X-File-Name': 'chunked.txt',
+        },
+      },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode ?? 0);
+      },
+    );
+    outgoing.on('error', reject);
+    outgoing.end('данные');
+  });
 }
 
 async function markPage(page: Page) {
@@ -276,7 +301,7 @@ test.describe('Загрузка файлов встречи', () => {
     }
   });
 
-  test('Route Handler загрузки: без входа 401, чужая встреча 404', async ({
+  test('Route Handler загрузки: без входа 401, чужая встреча 404, чужой Origin 403, без длины 411', async ({
     browser,
     context,
     request,
@@ -284,18 +309,35 @@ test.describe('Загрузка файлов встречи', () => {
     const meeting = await createMeeting(request, accessToken, newMeeting());
     const stranger = await registerUser(request);
     const foreign = await createMeeting(request, stranger, newMeeting());
-    const upload = (client: typeof request, meetingId: string, name: string) =>
+    const upload = (
+      client: typeof request,
+      meetingId: string,
+      name: string,
+      headers: Record<string, string> = {},
+    ) =>
       client.post(`/meetings/${meetingId}/files`, {
         headers: {
           'Content-Type': 'application/octet-stream',
           'X-File-Name': encodeURIComponent(name),
+          ...headers,
         },
         data: Buffer.from('данные'),
       });
 
-    const own = await upload(context.request, meeting.id, 'Свой файл.txt');
+    const own = await upload(context.request, meeting.id, 'Свой файл.txt', {
+      Origin: WEB_URL,
+    });
     expect(own.status()).toBe(201);
     expect(await own.json()).toMatchObject({ name: 'Свой файл.txt', size: 12 });
+
+    const crossSite = await upload(context.request, meeting.id, 'x.txt', {
+      Origin: 'https://evil.example',
+    });
+    expect(crossSite.status()).toBe(403);
+
+    expect(
+      await postChunked(`/meetings/${meeting.id}/files`, accessToken),
+    ).toBe(411);
 
     const foreignUpload = await upload(context.request, foreign.id, 'x.txt');
     expect(foreignUpload.status()).toBe(404);
