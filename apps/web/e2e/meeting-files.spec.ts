@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Download, type Page } from '@playwright/test';
 import {
@@ -10,6 +10,7 @@ import {
   type MeetingFile,
 } from './api';
 import { localDate, TIME_ZONE } from './dates';
+import { fileBytes } from './file-bytes';
 
 test.use({ locale: 'ru-RU', timezoneId: TIME_ZONE });
 
@@ -37,9 +38,9 @@ test.describe('Файлы встречи', () => {
   let meeting: Meeting;
   let emptyMeeting: Meeting;
   const contents = {
-    report: randomBytes(300),
-    slides: randomBytes(1536),
-    recording: randomBytes(2.5 * 1024 * 1024),
+    report: fileBytes('pdf', 300),
+    slides: fileBytes('pptx', 1536),
+    recording: fileBytes('mp4', 2.5 * 1024 * 1024),
   };
   let report: MeetingFile;
   let slides: MeetingFile;
@@ -56,7 +57,7 @@ test.describe('Файлы встречи', () => {
     report = await upload('Отчёт за ноябрь.pdf', contents.report);
     slides = await upload('slides.pptx', contents.slides);
     recording = await upload('Запись звонка.mp4', contents.recording);
-    reportCopy = await upload('Отчёт за ноябрь.pdf', randomBytes(300));
+    reportCopy = await upload('Отчёт за ноябрь.pdf', fileBytes('pdf', 300));
   });
 
   test.beforeEach(async ({ context }) => {
