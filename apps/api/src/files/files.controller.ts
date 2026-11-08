@@ -4,11 +4,14 @@ import {
   Headers,
   HttpException,
   HttpStatus,
+  BadRequestException,
   Param,
+  PayloadTooLargeException,
   Post,
   Req,
   Res,
   UnsupportedMediaTypeException,
+  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -18,11 +21,13 @@ import { getConfig } from '../config/configuration.js';
 import { type AuthUser, JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { GetMeetingQuery } from '../meetings/queries/get-meeting.query.js';
 import { CreateMeetingFileCommand } from './commands/create-meeting-file.command.js';
+import { formatOf, MAX_FILE_SIZE } from './file-formats.js';
 import { parseFileName } from './file-name.js';
 import { FileStorage } from './file-storage.js';
 import type { MeetingFileView } from './meeting-file.view.js';
 import { GetMeetingFileQuery } from './queries/get-meeting-file.query.js';
 import { ListMeetingFilesQuery } from './queries/list-meeting-files.query.js';
+import { UploadExceptionFilter } from './upload-exception.filter.js';
 
 const UPLOAD_CONTENT_TYPE = 'application/octet-stream';
 
@@ -38,6 +43,7 @@ export class FilesController {
   ) {}
 
   @Post()
+  @UseFilters(UploadExceptionFilter)
   async upload(
     @CurrentUser() user: AuthUser,
     @Param('meetingId') meetingId: string,
@@ -62,11 +68,23 @@ export class FilesController {
         HttpStatus.LENGTH_REQUIRED,
       );
     }
+    const size = Number(contentLength);
+    if (size === 0) {
+      throw new BadRequestException('File is empty');
+    }
+    if (size > MAX_FILE_SIZE) {
+      throw new PayloadTooLargeException('File is larger than 1 GiB');
+    }
+    const format = formatOf(name);
+    if (!format) {
+      throw new UnsupportedMediaTypeException('File format is not allowed');
+    }
     request.setTimeout(this.idleTimeoutMs, () => request.destroy());
     const stored = await this.storage.save(
       meetingId,
       request,
-      Number(contentLength),
+      size,
+      format.signature,
     );
     try {
       const file = await this.commandBus.execute(
