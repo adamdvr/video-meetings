@@ -120,6 +120,23 @@ describe('Files (e2e)', () => {
       expect(Number.isNaN(Date.parse(file.createdAt))).toBe(false);
     });
 
+    it('указывает адрес созданного файла в Location', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+
+      const res = await uploadFile(
+        token,
+        meetingId,
+        'Файл.pdf',
+        pdf(1024),
+      ).expect(201);
+
+      const { id } = res.body as FileBody;
+      expect((res.headers as Record<string, string>).location).toBe(
+        `/meetings/${meetingId}/files/${id}`,
+      );
+    });
+
     it('создаёт запись только после полного приёма файла', async () => {
       const token = await registerUser();
       const meetingId = await createMeeting(token);
