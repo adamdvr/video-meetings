@@ -4,7 +4,7 @@ export const MAX_FILE_SIZE = 1024 ** 3;
 
 export const SIGNATURE_LENGTH = 12;
 
-type Signature = (head: Buffer) => boolean;
+export type Signature = (head: Buffer) => boolean;
 
 const bytes = (expected: string, offset = 0): Signature => {
   const pattern = Buffer.from(expected, 'latin1');

@@ -73,7 +73,9 @@ export class FilesController {
       throw new BadRequestException('File is empty');
     }
     if (size > MAX_FILE_SIZE) {
-      throw new PayloadTooLargeException('File is larger than 1 GiB');
+      throw new PayloadTooLargeException(
+        `File is larger than ${MAX_FILE_SIZE / 1024 ** 3} GiB`,
+      );
     }
     const format = formatOf(name);
     if (!format) {

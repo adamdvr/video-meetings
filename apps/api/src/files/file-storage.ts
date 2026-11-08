@@ -10,37 +10,36 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { getConfig } from '../config/configuration.js';
-import { SIGNATURE_LENGTH } from './file-formats.js';
+import { type Signature, SIGNATURE_LENGTH } from './file-formats.js';
 
 export interface StoredFile {
   id: string;
   size: number;
 }
 
-function signatureCheck(matches: (head: Buffer) => boolean): Transform {
+function signatureCheck(matches: Signature): Transform {
   let head = Buffer.alloc(0);
   let checked = false;
-  const check = () => {
-    checked = true;
-    return matches(head)
+  const rejection = () =>
+    matches(head)
       ? null
       : new UnsupportedMediaTypeException(
           'File content does not match its format',
         );
-  };
   return new Transform({
     transform(chunk: Buffer, _encoding, callback) {
       if (!checked) {
         head = Buffer.concat([head, chunk]).subarray(0, SIGNATURE_LENGTH);
         if (head.length === SIGNATURE_LENGTH) {
-          const error = check();
+          checked = true;
+          const error = rejection();
           if (error) return callback(error);
         }
       }
       callback(null, chunk);
     },
     flush(callback) {
-      callback(checked ? null : check());
+      callback(checked ? null : rejection());
     },
   });
 }
@@ -53,7 +52,7 @@ export class FileStorage {
     meetingId: string,
     source: Readable,
     expectedSize: number,
-    signature: (head: Buffer) => boolean,
+    signature: Signature,
   ): Promise<StoredFile> {
     const id = randomUUID();
     const tempDir = join(this.dir, '.tmp');
