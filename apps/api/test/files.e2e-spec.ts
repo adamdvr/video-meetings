@@ -95,7 +95,7 @@ describe('Files (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .responseType('blob');
 
-  async function uploaded(
+  async function uploadOk(
     token: string,
     meetingId: string,
     name: string,
@@ -111,7 +111,7 @@ describe('Files (e2e)', () => {
       const meetingId = await createMeeting(token);
       const data = pdf(64 * 1024);
 
-      const file = await uploaded(token, meetingId, 'Отчёт за май.pdf', data);
+      const file = await uploadOk(token, meetingId, 'Отчёт за май.pdf', data);
 
       expect(file.id).toEqual(expect.any(String));
       expect(file.name).toBe('Отчёт за май.pdf');
@@ -322,8 +322,8 @@ describe('Files (e2e)', () => {
       const token = await registerUser();
       const meetingId = await createMeeting(token);
       const name = 'Протокол встречи.pdf';
-      const first = await uploaded(token, meetingId, name, pdf(2048));
-      const second = await uploaded(token, meetingId, name, pdf(4096));
+      const first = await uploadOk(token, meetingId, name, pdf(2048));
+      const second = await uploadOk(token, meetingId, name, pdf(4096));
 
       const res = await listFiles(token, meetingId).expect(200);
 
@@ -341,7 +341,7 @@ describe('Files (e2e)', () => {
       const owner = await registerUser();
       const other = await registerUser();
       const meetingId = await createMeeting(owner);
-      await uploaded(owner, meetingId, 'Свой.pdf', pdf(1024));
+      await uploadOk(owner, meetingId, 'Свой.pdf', pdf(1024));
       await listFiles(owner, meetingId).expect(200);
 
       await listFiles(other, meetingId).expect(404);
@@ -363,7 +363,7 @@ describe('Files (e2e)', () => {
       const meetingId = await createMeeting(token);
       const name = 'Отчёт за май 2030.pdf';
       const data = pdf(512 * 1024);
-      const file = await uploaded(token, meetingId, name, data);
+      const file = await uploadOk(token, meetingId, name, data);
 
       const res = await downloadFile(token, meetingId, file.id).expect(200);
 
@@ -379,7 +379,7 @@ describe('Files (e2e)', () => {
       const meetingId = await createMeeting(token);
       const data = Buffer.from('Повестка встречи');
 
-      const file = await uploaded(token, meetingId, 'Повестка.txt', data);
+      const file = await uploadOk(token, meetingId, 'Повестка.txt', data);
       const res = await downloadFile(token, meetingId, file.id).expect(200);
 
       expect(file.mimeType).toBe('text/plain');
@@ -393,7 +393,7 @@ describe('Files (e2e)', () => {
       const owner = await registerUser();
       const other = await registerUser();
       const meetingId = await createMeeting(owner);
-      const file = await uploaded(owner, meetingId, 'Свой.pdf', pdf(1024));
+      const file = await uploadOk(owner, meetingId, 'Свой.pdf', pdf(1024));
       await downloadFile(owner, meetingId, file.id).expect(200);
 
       await downloadFile(other, meetingId, file.id).expect(404);
@@ -403,7 +403,7 @@ describe('Files (e2e)', () => {
       const token = await registerUser();
       const meetingId = await createMeeting(token);
       const otherMeetingId = await createMeeting(token);
-      const file = await uploaded(token, meetingId, 'Файл.pdf', pdf(1024));
+      const file = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
       await downloadFile(token, meetingId, file.id).expect(200);
 
       await downloadFile(token, meetingId, randomUUID()).expect(404);
@@ -413,7 +413,7 @@ describe('Files (e2e)', () => {
     it('возвращает 401 без токена', async () => {
       const token = await registerUser();
       const meetingId = await createMeeting(token);
-      const file = await uploaded(token, meetingId, 'Файл.pdf', pdf(1024));
+      const file = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
 
       await request(app.getHttpServer())
         .get(`/meetings/${meetingId}/files/${file.id}`)
