@@ -133,8 +133,12 @@ test.describe('Страница встречи', () => {
   });
 });
 
-test('без входа страница встречи ведёт на /login', async ({ page }) => {
-  await page.goto(`/meetings/${randomUUID()}`);
+for (const suffix of ['', '/files']) {
+  test(`без входа /meetings/<id>${suffix} ведёт на /login`, async ({
+    page,
+  }) => {
+    await page.goto(`/meetings/${randomUUID()}${suffix}`);
 
-  await expect(page).toHaveURL('/login');
-});
+    await expect(page).toHaveURL('/login');
+  });
+}
