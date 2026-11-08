@@ -9,6 +9,10 @@ export type Meeting = {
   participants: string[];
 };
 
+export enum MeetingLookup {
+  NotFound = 'not-found',
+}
+
 export const LATEST_MEETINGS_COUNT = 3;
 
 export async function getMeetings(): Promise<Meeting[] | null> {
@@ -36,7 +40,7 @@ export async function getMeetings(): Promise<Meeting[] | null> {
 }
 
 export const getMeeting = cache(
-  async (id: string): Promise<Meeting | 'not-found' | null> => {
+  async (id: string): Promise<Meeting | MeetingLookup.NotFound | null> => {
     const accessToken = await getAccessToken();
     if (!accessToken) return null;
 
@@ -44,7 +48,7 @@ export const getMeeting = cache(
       const response = await apiFetch(`/meetings/${encodeURIComponent(id)}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (response.status === 404) return 'not-found';
+      if (response.status === 404) return MeetingLookup.NotFound;
       if (!response.ok) {
         console.error(`GET /meetings/:id: api ответил ${response.status}`);
         return null;
