@@ -1,20 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import { createMeeting, registerUser, signIn, type Meeting } from './api';
-
-const TIME_ZONE = 'Asia/Vladivostok';
+import { localDate, TIME_ZONE } from './dates';
 
 test.use({ locale: 'ru-RU', timezoneId: TIME_ZONE });
-
-const localDate = (iso: string) =>
-  new Intl.DateTimeFormat('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: TIME_ZONE,
-  }).format(new Date(iso));
 
 const newMeeting = (date: string, participants: string[] = []) => ({
   title: `Планёрка ${randomUUID()}`,
@@ -133,7 +122,7 @@ test.describe('Страница встречи', () => {
   });
 });
 
-for (const suffix of ['', '/files']) {
+for (const suffix of ['', '/participants']) {
   test(`без входа /meetings/<id>${suffix} ведёт на /login`, async ({
     page,
   }) => {

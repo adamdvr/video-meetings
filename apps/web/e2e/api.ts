@@ -51,3 +51,33 @@ export async function signIn(context: BrowserContext, accessToken: string) {
     },
   ]);
 }
+
+export type MeetingFile = {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+};
+
+export async function uploadFile(
+  request: APIRequestContext,
+  accessToken: string,
+  meetingId: string,
+  name: string,
+  body: Buffer,
+) {
+  const response = await request.post(
+    `${API_URL}/meetings/${meetingId}/files`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/octet-stream',
+        'X-File-Name': encodeURIComponent(name),
+      },
+      data: body,
+    },
+  );
+  expect(response.status()).toBe(201);
+  return (await response.json()) as MeetingFile;
+}

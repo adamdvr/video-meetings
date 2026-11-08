@@ -1,5 +1,5 @@
 // Адрес api для серверного кода web. Браузер в api напрямую не ходит.
-const API_URL = process.env.API_URL ?? 'http://localhost:4000';
+export const API_URL = process.env.API_URL ?? 'http://localhost:4000';
 
 // Без таймаута зависший api подвесил бы и Server Action, и страницу пользователя.
 export function apiFetch(path: string, init?: RequestInit) {

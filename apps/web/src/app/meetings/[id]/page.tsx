@@ -8,7 +8,13 @@ import { Suspense } from 'react';
 import { MeetingDate } from '@/app/meeting-date';
 import { RetryButton } from '@/app/retry-button';
 import { AppHeader } from '@/components/app-header';
+import { getMeetingFiles } from '@/lib/meeting-files';
 import { getMeeting, type Meeting } from '@/lib/meetings';
+import {
+  MeetingFiles,
+  MeetingFilesPlaceholder,
+  MeetingFilesSkeleton,
+} from './meeting-files';
 
 export async function generateMetadata({
   params,
@@ -44,6 +50,7 @@ async function MeetingDetails({
   params,
 }: Pick<PageProps<'/meetings/[id]'>, 'params'>) {
   const { id } = await params;
+  void getMeetingFiles(id);
   const meeting = await getMeeting(id);
   if (meeting === 'not-found') return <NotFound />;
   if (!meeting) return <LoadError />;
@@ -58,6 +65,9 @@ async function MeetingDetails({
         <MeetingDate iso={meeting.date} />
       </p>
       <Participants participants={meeting.participants} />
+      <Suspense fallback={<MeetingFilesSkeleton />}>
+        <MeetingFiles meetingId={id} />
+      </Suspense>
     </>
   );
 }
@@ -157,6 +167,7 @@ function MeetingSkeleton() {
             ))}
           </div>
         </Card>
+        <MeetingFilesPlaceholder />
       </div>
     </div>
   );
