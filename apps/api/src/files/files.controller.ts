@@ -47,6 +47,7 @@ export class FilesController {
     @Headers('x-file-name') fileName: string | undefined,
     @Headers('content-length') contentLength: string | undefined,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<MeetingFileView> {
     await this.queryBus.execute(new GetMeetingQuery(user.id, meetingId));
     if (
@@ -70,9 +71,11 @@ export class FilesController {
       Number(contentLength),
     );
     try {
-      return await this.commandBus.execute(
+      const file = await this.commandBus.execute(
         new CreateMeetingFileCommand(meetingId, stored.id, name, stored.size),
       );
+      response.location(`/meetings/${meetingId}/files/${file.id}`);
+      return file;
     } catch (error) {
       await this.storage.remove(meetingId, stored.id);
       throw error;
