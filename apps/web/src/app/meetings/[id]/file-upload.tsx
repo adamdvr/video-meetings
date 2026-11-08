@@ -17,7 +17,13 @@ import { formatFileSize } from '@/lib/file-size';
 
 const MAX_PARALLEL_UPLOADS = 3;
 
-type UploadStatus = 'queued' | 'uploading' | 'saving' | 'done' | 'error';
+enum UploadStatus {
+  Queued = 'queued',
+  Uploading = 'uploading',
+  Saving = 'saving',
+  Done = 'done',
+  Error = 'error',
+}
 
 type Upload = {
   key: string;
@@ -54,17 +60,18 @@ export function FileUpload({
     active.current -= 1;
     update(upload.key, patch);
     setAnnouncement(
-      patch.status === 'done'
+      patch.status === UploadStatus.Done
         ? `Файл «${upload.file.name}» загружен`
         : `Не удалось загрузить «${upload.file.name}»`,
     );
-    if (patch.status === 'done') startTransition(() => router.refresh());
+    if (patch.status === UploadStatus.Done)
+      startTransition(() => router.refresh());
     startNext();
   };
 
   const send = (upload: Upload) => {
     active.current += 1;
-    update(upload.key, { status: 'uploading' });
+    update(upload.key, { status: UploadStatus.Uploading });
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `/meetings/${encodeURIComponent(meetingId)}/files`);
@@ -78,16 +85,16 @@ export function FileUpload({
       });
     };
     xhr.upload.onload = () =>
-      update(upload.key, { status: 'saving', progress: 100 });
+      update(upload.key, { status: UploadStatus.Saving, progress: 100 });
     xhr.onload = () => {
       const body = xhr.response as { id?: unknown } | null;
       if (xhr.status === 201 && typeof body?.id === 'string') {
-        finish(upload, { status: 'done', fileId: body.id });
+        finish(upload, { status: UploadStatus.Done, fileId: body.id });
       } else {
-        finish(upload, { status: 'error' });
+        finish(upload, { status: UploadStatus.Error });
       }
     };
-    xhr.onerror = () => finish(upload, { status: 'error' });
+    xhr.onerror = () => finish(upload, { status: UploadStatus.Error });
     xhr.send(upload.file);
   };
 
@@ -102,7 +109,7 @@ export function FileUpload({
     const added = files.map((file) => ({
       key: crypto.randomUUID(),
       file,
-      status: 'queued' as const,
+      status: UploadStatus.Queued,
       progress: 0,
     }));
     setUploads((current) => [...added, ...current]);
@@ -182,7 +189,7 @@ function UploadRow({ upload }: { upload: Upload }) {
             {formatFileSize(file.size)}
           </span>
         </div>
-        {status === 'uploading' || status === 'saving' ? (
+        {status === UploadStatus.Uploading || status === UploadStatus.Saving ? (
           <ProgressBar
             aria-label={`Загрузка ${file.name}`}
             className="mt-2"
@@ -197,7 +204,7 @@ function UploadRow({ upload }: { upload: Upload }) {
         ) : (
           <StatusLine status={status} />
         )}
-        {status === 'saving' && (
+        {status === UploadStatus.Saving && (
           <p className="mt-1 text-sm text-muted">Сохраняем…</p>
         )}
       </div>
@@ -206,10 +213,10 @@ function UploadRow({ upload }: { upload: Upload }) {
 }
 
 function StatusLine({ status }: { status: UploadStatus }) {
-  if (status === 'queued') {
+  if (status === UploadStatus.Queued) {
     return <p className="mt-1 text-sm text-muted">В очереди</p>;
   }
-  if (status === 'done') {
+  if (status === UploadStatus.Done) {
     return (
       <p className="mt-1 flex items-center gap-1.5 text-sm text-success">
         <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
