@@ -26,6 +26,7 @@ export function getConfig() {
     jwtExpiresInSeconds: Number(
       process.env.JWT_EXPIRES_IN_SECONDS ?? 60 * 60 * 24 * 7,
     ),
+    uploadIdleTimeoutMs: Number(process.env.UPLOAD_IDLE_TIMEOUT_MS || 60_000),
     filesDir: resolve(
       process.env.FILES_DIR ||
         fileURLToPath(new URL('../../storage', import.meta.url)),

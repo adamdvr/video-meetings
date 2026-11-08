@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { rm } from 'node:fs/promises';
+import { readdir, rm } from 'node:fs/promises';
+import { request as httpRequest, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -17,12 +19,13 @@ describe('Files storage (e2e)', () => {
 
   beforeAll(async () => {
     process.env.FILES_DIR = FILES_DIR;
+    process.env.UPLOAD_IDLE_TIMEOUT_MS = '300';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await app.listen(0);
 
     const registered = await request(app.getHttpServer())
       .post('/auth/register')
@@ -85,5 +88,39 @@ describe('Files storage (e2e)', () => {
       message: 'File not found',
     });
     expect(res.text).not.toContain(FILES_DIR);
+  });
+
+  it('обрывает загрузку, если байты не приходят дольше таймаута простоя', async () => {
+    const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
+    const upload = httpRequest({
+      port,
+      method: 'POST',
+      path: `/meetings/${meetingId}/files`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': 1024,
+        'X-File-Name': 'stalled.pdf',
+      },
+    });
+    const closed = new Promise<void>((resolve) => {
+      upload.on('error', () => resolve());
+      upload.on('response', (res) => {
+        res.resume();
+        res.on('end', () => resolve());
+      });
+    });
+    upload.write(Buffer.from('%PDF-1.7\n'));
+
+    await closed;
+
+    const res = await request(app.getHttpServer())
+      .get(`/meetings/${meetingId}/files`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(
+      (res.body as { name: string }[]).map((file) => file.name),
+    ).not.toContain('stalled.pdf');
+    expect(await readdir(join(FILES_DIR, '.tmp'))).toEqual([]);
   });
 });

@@ -16,6 +16,7 @@ import {
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../auth/current-user.decorator.js';
+import { getConfig } from '../config/configuration.js';
 import { type AuthUser, JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { GetMeetingQuery } from '../meetings/queries/get-meeting.query.js';
 import { CreateMeetingFileCommand } from './commands/create-meeting-file.command.js';
@@ -30,6 +31,8 @@ const UPLOAD_CONTENT_TYPE = 'application/octet-stream';
 @Controller('meetings/:meetingId/files')
 @UseGuards(JwtAuthGuard)
 export class FilesController {
+  private readonly idleTimeoutMs = getConfig().uploadIdleTimeoutMs;
+
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
@@ -60,6 +63,7 @@ export class FilesController {
         HttpStatus.LENGTH_REQUIRED,
       );
     }
+    request.setTimeout(this.idleTimeoutMs, () => request.destroy());
     const stored = await this.storage.save(
       meetingId,
       request,
