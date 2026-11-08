@@ -2,10 +2,10 @@
 
 Монорепозиторий на [npm workspaces](https://docs.npmjs.com/cli/using-npm/workspaces) и [Turborepo](https://turborepo.com).
 
-| Приложение | Путь       | Стек                                                                   | Порт |
-| ---------- | ---------- | ---------------------------------------------------------------------- | ---- |
-| `web`      | `apps/web` | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, HeroUI 3 | 3000 |
-| `api`      | `apps/api` | NestJS 12 (ESM), Prisma 7, Vitest                                      | 4000 |
+| Приложение | Путь       | Стек                                                                               | Порт |
+| ---------- | ---------- | ---------------------------------------------------------------------------------- | ---- |
+| `web`      | `apps/web` | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, HeroUI 3, Playwright | 3000 |
+| `api`      | `apps/api` | NestJS 12 (ESM), Prisma 7, Vitest                                                  | 4000 |
 
 ## Требования
 
@@ -53,7 +53,7 @@ docker compose down -v        # остановить и удалить данн�
 | `npm run lint` / `lint:fix`       | ESLint: проверка / автоисправление |
 | `npm run check-types`             | проверка типов TypeScript          |
 | `npm test`                        | unit-тесты (Vitest)                |
-| `npm run test:e2e`                | e2e-тесты API                      |
+| `npm run test:e2e`                | e2e-тесты api и web                |
 | `npm run format` / `format:check` | Prettier по всему репозиторию      |
 
 Задача только для одного приложения: `npm run dev -- --filter=web`.
@@ -61,10 +61,12 @@ docker compose down -v        # остановить и удалить данн�
 
 ## Тесты
 
-Тесты есть только в `api` (Vitest 4), у `web` тестового раннера пока нет.
+В `api` — unit- и e2e-тесты на Vitest 4, в `web` — e2e-тесты на Playwright Test.
 
 - **Unit** (`apps/api/src/**/*.spec.ts`): `npm test`. Пока он один (`src/config/configuration.spec.ts`), основное поведение покрывают e2e-тесты.
-- **E2E** (`apps/api/test/*.e2e-spec.ts`): `npm run test:e2e`. Поднимают приложение целиком, обращаются к нему по HTTP и через шину CQRS, пишут данные в настоящий PostgreSQL, а загруженные файлы — в каталог хранения.
+- **E2E api** (`apps/api/test/*.e2e-spec.ts`): `npm run test:e2e`. Поднимают приложение целиком, обращаются к нему по HTTP и через шину CQRS, пишут данные в настоящий PostgreSQL, а загруженные файлы — в каталог хранения.
+
+- **E2E web** (`apps/web/e2e/*.spec.ts`): тот же `npm run test:e2e`. Открывают страницы в Chromium и проходят сценарии пользователя: данные готовят через REST api, вход — подстановкой cookie с токеном. Playwright переиспользует запущенные dev-серверы web (3000) и api (4000), а если их нет — сам запускает `npm run dev` обоих приложений и останавливает после прогона. Браузер скачивается один раз: `npm exec -w web -- playwright install chromium`. Отчёт о прогоне — `apps/web/playwright-report` (`npx playwright show-report` из `apps/web`), трассы упавших тестов — `apps/web/test-results`; обе папки в `.gitignore`.
 
 Для e2e нужно то же окружение, что и для `npm run dev`: `nvm use`, корневой `.env` (`cp .env.example .env`, нужны `DATABASE_URL` и `JWT_SECRET`), запущенная база (`docker compose up -d --wait`) и применённые миграции (`npm run db:deploy -w api`).
 
@@ -72,12 +74,15 @@ docker compose down -v        # остановить и удалить данн�
 npm run test:e2e -w api -- test/auth.e2e-spec.ts           # один файл
 npm run test:e2e -w api -- -t "возвращает 409"             # по имени теста
 npm run test:e2e -w api -- test/auth.e2e-spec.ts -t "409"  # файл и имя вместе
+npm run test:e2e -w web                                     # только web
+npm run test:e2e -w web -- --ui                             # web в окне Playwright UI
 ```
 
 Что нужно знать:
 
 - **Одна база на всё.** E2E-тесты работают с той же базой, что и `npm run dev`, и ничего не удаляют. Тесты, которые что-то создают, берут уникальные данные (`user-<uuid>@example.com`), поэтому не мешают друг другу и вашим данным, но тестовые пользователи и их файлы накапливаются (см. «Файлы встреч»).
 - **Кэш Turborepo.** `test` и `test:e2e` кэшируются по файлам проекта, а не по состоянию базы. Повторный запуск из корня без правок кода отвечает из кэша (`cache hit, replaying logs`, за миллисекунды) и в базу не заходит. Для честного прогона добавьте `--force`: `npm run test:e2e -- --force`, либо запустите скрипт напрямую: `npm run test:e2e -w api`.
+- **web после api.** Через Turborepo e2e-тесты web запускаются только после e2e-тестов api (`turbo.json`). Задача `db:generate` перезаписывает Prisma-клиент, запущенный `npm run dev` перезапускает api, и web-тесты, начатые параллельно, падали с `ECONNREFUSED :4000`. Поэтому `npm run test:e2e -- --filter=web` прогоняет и api; только web — `npm run test:e2e -w web`.
 - **Prisma-клиент.** Прямой запуск скрипта (`-w api`) не выполняет `db:generate`: после правки `prisma/schema.prisma` сначала `npm run db:generate -w api`. Из корня через Turborepo клиент пересоберётся сам.
 
 Если e2e-тесты падают:
@@ -85,6 +90,8 @@ npm run test:e2e -w api -- test/auth.e2e-spec.ts -t "409"  # файл и имя 
 - `Не задана переменная окружения DATABASE_URL`: нет корневого `.env`.
 - `PrismaClientKnownRequestError: Invalid … invocation` без объяснения причины: база не запущена, выполните `docker compose up -d --wait`.
 - То же и строка ``The table `public.users` does not exist``: не применены миграции, выполните `npm run db:deploy -w api`.
+- `browserType.launch: Executable doesn't exist` в web: не скачан Chromium, выполните `npm exec -w web -- playwright install chromium`.
+- `ECONNREFUSED ::1:4000` в web: api не запущен или перезапустился во время прогона.
 
 Полная проверка перед коммитом: `npx turbo run lint check-types test test:e2e build && npm run format:check`.
 
@@ -92,7 +99,7 @@ npm run test:e2e -w api -- test/auth.e2e-spec.ts -t "409"  # файл и имя 
 
 Перед каждым коммитом срабатывает `pre-commit` ([Husky](https://typicode.github.io/husky/), файл `.husky/pre-commit`): он запускает `turbo run lint test test:e2e`, и если что-то красное, коммит отменяется. Хук подключается сам при `npm install`: скрипт `prepare` выставляет `core.hooksPath`.
 
-- **Нужна база.** E2E-тесты ходят в PostgreSQL, поэтому перед коммитом кода должны быть запущены база и применены миграции (см. «Тесты»). Результат кэшируется Turborepo: коммит без правок кода отвечает из кэша за доли секунды и в базу не заходит.
+- **Нужна база.** E2E-тесты ходят в PostgreSQL, поэтому перед коммитом кода должны быть запущены база и применены миграции (см. «Тесты»). E2E-тесты web вдобавок используют dev-серверы: если `npm run dev` не запущен, хук поднимет их сам, и коммит займёт дольше. Результат кэшируется Turborepo: коммит без правок кода отвечает из кэша за доли секунды и в базу не заходит.
 - **Проверяется рабочая копия**, а не индекс: правки, которые вы не добавили в коммит, тоже участвуют в проверке. `check-types`, `build` и `format:check` хук не запускает: их покрывает «полная проверка» из раздела «Тесты».
 - **Запустить вручную**, не делая коммит: `git hook run pre-commit` (нужен git 2.36 или новее).
 - **Пропустить**: `git commit --no-verify` для одного коммита или `HUSKY=0 git commit …`. Красный хук лучше чинить, а не обходить.
