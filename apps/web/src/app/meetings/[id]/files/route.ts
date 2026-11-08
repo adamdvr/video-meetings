@@ -41,7 +41,7 @@ export async function POST(
   { params }: RouteContext<'/meetings/[id]/files'>,
 ) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (!token || !readSession(token)) {
+  if (!readSession(token)) {
     return jsonError('Unauthorized', 401);
   }
   if (isCrossOrigin(request)) return jsonError('Forbidden', 403);
@@ -56,8 +56,7 @@ export async function POST(
       new URL(`${API_URL}/meetings/${encodeURIComponent(id)}/files`),
       {
         authorization: `Bearer ${token}`,
-        'content-type':
-          request.headers.get('content-type') ?? 'application/octet-stream',
+        'content-type': 'application/octet-stream',
         'content-length': length,
         'x-file-name': request.headers.get('x-file-name') ?? '',
       },
