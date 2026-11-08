@@ -63,7 +63,7 @@ docker compose down -v        # остановить и удалить данн�
 
 Тесты есть только в `api` (Vitest 4), у `web` тестового раннера пока нет.
 
-- **Unit** (`apps/api/src/**/*.spec.ts`): `npm test`. Пока ни одного нет, задача проходит и без файлов.
+- **Unit** (`apps/api/src/**/*.spec.ts`): `npm test`. Пока он один (`src/config/configuration.spec.ts`), основное поведение покрывают e2e-тесты.
 - **E2E** (`apps/api/test/*.e2e-spec.ts`): `npm run test:e2e`. Поднимают приложение целиком, обращаются к нему по HTTP и через шину CQRS, пишут данные в настоящий PostgreSQL, а загруженные файлы — в каталог хранения.
 
 Для e2e нужно то же окружение, что и для `npm run dev`: `nvm use`, корневой `.env` (`cp .env.example .env`, нужны `DATABASE_URL` и `JWT_SECRET`), запущенная база (`docker compose up -d --wait`) и применённые миграции (`npm run db:deploy -w api`).
