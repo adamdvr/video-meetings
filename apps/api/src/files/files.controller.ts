@@ -4,8 +4,6 @@ import {
   Headers,
   HttpException,
   HttpStatus,
-  InternalServerErrorException,
-  NotFoundException,
   Param,
   Post,
   Req,
@@ -100,30 +98,14 @@ export class FilesController {
     const file = await this.queryBus.execute(
       new GetMeetingFileQuery(user.id, meetingId, fileId),
     );
-    response.download(
-      file.path,
-      file.name,
-      {
-        cacheControl: false,
-        dotfiles: 'allow',
-        headers: {
-          'Content-Type': file.mimeType.startsWith('text/')
-            ? `${file.mimeType}; charset=utf-8`
-            : file.mimeType,
-          'Cache-Control': 'private, no-cache',
-          'X-Content-Type-Options': 'nosniff',
-        },
+    response.download(file.path, file.name, {
+      cacheControl: false,
+      dotfiles: 'allow',
+      headers: {
+        'Content-Type': file.contentType,
+        'Cache-Control': 'private, no-cache',
+        'X-Content-Type-Options': 'nosniff',
       },
-      (error?: Error & { status?: number }) => {
-        if (!error || response.headersSent) {
-          return;
-        }
-        const exception =
-          error.status === 404
-            ? new NotFoundException('File not found')
-            : new InternalServerErrorException();
-        response.status(exception.getStatus()).json(exception.getResponse());
-      },
-    );
+    });
   }
 }
