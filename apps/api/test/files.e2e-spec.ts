@@ -263,6 +263,34 @@ describe('Files (e2e)', () => {
         .send({ name: 'file.pdf' })
         .expect(415);
     });
+    it('возвращает 411 для тела без Content-Length', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
+
+      const upload = httpRequest({
+        port,
+        method: 'POST',
+        path: `/meetings/${meetingId}/files`,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/octet-stream',
+          'Transfer-Encoding': 'chunked',
+          'X-File-Name': 'file.pdf',
+        },
+      });
+      const status = new Promise<number | undefined>((resolve, reject) => {
+        upload.on('response', (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        });
+        upload.on('error', reject);
+      });
+      upload.end(pdf(1024));
+
+      expect(await status).toBe(411);
+      await listFiles(token, meetingId).expect(200).expect([]);
+    });
   });
 
   describe('GET /meetings/:id/files', () => {

@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpException,
+  HttpStatus,
   InternalServerErrorException,
   NotFoundException,
   Param,
@@ -40,6 +42,7 @@ export class FilesController {
     @Param('meetingId') meetingId: string,
     @Headers('content-type') contentType: string | undefined,
     @Headers('x-file-name') fileName: string | undefined,
+    @Headers('content-length') contentLength: string | undefined,
     @Req() request: Request,
   ): Promise<MeetingFileView> {
     await this.queryBus.execute(new GetMeetingQuery(user.id, meetingId));
@@ -51,7 +54,17 @@ export class FilesController {
       );
     }
     const name = parseFileName(fileName);
-    const stored = await this.storage.save(meetingId, request);
+    if (contentLength === undefined) {
+      throw new HttpException(
+        'Content-Length is required',
+        HttpStatus.LENGTH_REQUIRED,
+      );
+    }
+    const stored = await this.storage.save(
+      meetingId,
+      request,
+      Number(contentLength),
+    );
     try {
       return await this.commandBus.execute(
         new CreateMeetingFileCommand(meetingId, stored.id, name, stored.size),

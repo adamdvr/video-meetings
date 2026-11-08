@@ -4,7 +4,7 @@ import { mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { getConfig } from '../config/configuration.js';
 
 export interface StoredFile {
@@ -16,7 +16,11 @@ export interface StoredFile {
 export class FileStorage {
   private readonly dir = getConfig().filesDir;
 
-  async save(meetingId: string, source: Readable): Promise<StoredFile> {
+  async save(
+    meetingId: string,
+    source: Readable,
+    expectedSize: number,
+  ): Promise<StoredFile> {
     const id = randomUUID();
     const tempDir = join(this.dir, '.tmp');
     const tempPath = join(tempDir, `${id}.part`);
@@ -24,6 +28,9 @@ export class FileStorage {
     const target = createWriteStream(tempPath, { flags: 'wx' });
     try {
       await pipeline(source, target);
+      if (target.bytesWritten !== expectedSize) {
+        throw new BadRequestException('Body is shorter than Content-Length');
+      }
       await mkdir(join(this.dir, meetingId), { recursive: true });
       await rename(tempPath, this.path(meetingId, id));
     } catch (error) {
