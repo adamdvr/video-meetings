@@ -12,8 +12,10 @@ const PASSWORD = 'correct-horse-battery';
 
 const uniqueEmail = () => `user-${randomUUID()}@example.com`;
 
+const PDF_HEADER = Buffer.from('%PDF-1.7\n');
+
 const pdf = (size: number) =>
-  Buffer.concat([Buffer.from('%PDF-1.7\n'), randomBytes(size - 9)]);
+  Buffer.concat([PDF_HEADER, randomBytes(size - PDF_HEADER.length)]);
 
 const sha256 = (data: Buffer) =>
   createHash('sha256').update(data).digest('hex');
