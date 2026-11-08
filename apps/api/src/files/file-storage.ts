@@ -2,14 +2,47 @@ import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import { access, mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Readable } from 'node:stream';
+import { type Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnsupportedMediaTypeException,
+} from '@nestjs/common';
 import { getConfig } from '../config/configuration.js';
+import { SIGNATURE_LENGTH } from './file-formats.js';
 
 export interface StoredFile {
   id: string;
   size: number;
+}
+
+function signatureCheck(matches: (head: Buffer) => boolean): Transform {
+  let head = Buffer.alloc(0);
+  let checked = false;
+  const check = () => {
+    checked = true;
+    return matches(head)
+      ? null
+      : new UnsupportedMediaTypeException(
+          'File content does not match its format',
+        );
+  };
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      if (!checked) {
+        head = Buffer.concat([head, chunk]).subarray(0, SIGNATURE_LENGTH);
+        if (head.length === SIGNATURE_LENGTH) {
+          const error = check();
+          if (error) return callback(error);
+        }
+      }
+      callback(null, chunk);
+    },
+    flush(callback) {
+      callback(checked ? null : check());
+    },
+  });
 }
 
 @Injectable()
@@ -20,6 +53,7 @@ export class FileStorage {
     meetingId: string,
     source: Readable,
     expectedSize: number,
+    signature: (head: Buffer) => boolean,
   ): Promise<StoredFile> {
     const id = randomUUID();
     const tempDir = join(this.dir, '.tmp');
@@ -27,7 +61,7 @@ export class FileStorage {
     await mkdir(tempDir, { recursive: true });
     const target = createWriteStream(tempPath, { flags: 'wx' });
     try {
-      await pipeline(source, target);
+      await pipeline(source, signatureCheck(signature), target);
       if (target.bytesWritten !== expectedSize) {
         throw new BadRequestException('Body is shorter than Content-Length');
       }
