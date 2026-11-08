@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { apiFetch } from './api';
+import { apiFetch, authHeader } from './api';
 import { getAccessToken } from './session';
 
 export type MeetingFile = {
@@ -18,7 +18,7 @@ export const getMeetingFiles = cache(
     try {
       const response = await apiFetch(
         `/meetings/${encodeURIComponent(meetingId)}/files`,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
+        { headers: authHeader(accessToken) },
       );
       if (!response.ok) {
         console.error(

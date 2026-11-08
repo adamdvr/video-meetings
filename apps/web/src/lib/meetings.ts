@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { apiFetch } from './api';
+import { apiFetch, authHeader } from './api';
 import { getAccessToken } from './session';
 
 export type Meeting = {
@@ -17,7 +17,7 @@ export async function getMeetings(): Promise<Meeting[] | null> {
 
   try {
     const response = await apiFetch('/meetings', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: authHeader(accessToken),
     });
     if (!response.ok) {
       console.error(`GET /meetings: api ответил ${response.status}`);
@@ -42,7 +42,7 @@ export const getMeeting = cache(
 
     try {
       const response = await apiFetch(`/meetings/${encodeURIComponent(id)}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: authHeader(accessToken),
       });
       if (response.status === 404) return 'not-found';
       if (!response.ok) {

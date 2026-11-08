@@ -33,6 +33,11 @@ export async function getAccessToken() {
   return cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
 }
 
+export async function getApiToken() {
+  const token = await getAccessToken();
+  return token && readSession(token) ? token : null;
+}
+
 export async function deleteSession() {
   const cookieStore = await cookies();
   cookieStore.delete(ACCESS_TOKEN_COOKIE);
