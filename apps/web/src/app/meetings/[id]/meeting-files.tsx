@@ -3,11 +3,8 @@ import File from '@gravity-ui/icons/File';
 import { Alert, buttonVariants, Card, Skeleton } from '@heroui/react';
 import { MeetingDate } from '@/app/meeting-date';
 import { RetryButton } from '@/app/retry-button';
-import {
-  formatFileSize,
-  getMeetingFiles,
-  type MeetingFile,
-} from '@/lib/meeting-files';
+import { formatFileSize } from '@/lib/file-size';
+import { getMeetingFiles, type MeetingFile } from '@/lib/meeting-files';
 
 export async function MeetingFiles({ meetingId }: { meetingId: string }) {
   const files = await getMeetingFiles(meetingId);
