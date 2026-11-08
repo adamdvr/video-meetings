@@ -5,6 +5,7 @@ import { MeetingDate } from '@/app/meeting-date';
 import { RetryButton } from '@/app/retry-button';
 import { formatFileSize } from '@/lib/file-size';
 import { getMeetingFiles, type MeetingFile } from '@/lib/meeting-files';
+import { FileUpload } from './file-upload';
 
 export async function MeetingFiles({ meetingId }: { meetingId: string }) {
   const files = await getMeetingFiles(meetingId);
@@ -22,18 +23,25 @@ export async function MeetingFiles({ meetingId }: { meetingId: string }) {
       </h2>
       {!files ? (
         <LoadError />
-      ) : files.length === 0 ? (
-        <Card className="mt-4 px-6 py-8 text-center text-muted">
-          Файлов пока нет
-        </Card>
       ) : (
-        <Card className="mt-4 gap-0 p-0">
-          <ul aria-labelledby="files" className="divide-y divide-separator">
-            {files.map((file) => (
-              <FileRow key={file.id} file={file} meetingId={meetingId} />
-            ))}
-          </ul>
-        </Card>
+        <FileUpload
+          fileIds={files.map((file) => file.id)}
+          meetingId={meetingId}
+        >
+          {files.length === 0 ? (
+            <Card className="mt-4 px-6 py-8 text-center text-muted">
+              Файлов пока нет
+            </Card>
+          ) : (
+            <Card className="mt-4 gap-0 p-0">
+              <ul aria-labelledby="files" className="divide-y divide-separator">
+                {files.map((file) => (
+                  <FileRow key={file.id} file={file} meetingId={meetingId} />
+                ))}
+              </ul>
+            </Card>
+          )}
+        </FileUpload>
       )}
     </section>
   );

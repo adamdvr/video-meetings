@@ -17,6 +17,7 @@
     "@heroui/styles": "^3.2.6",
     "next": "16.4.3",
     "react": "19.3.0",
+    "react-aria-components": "^1.22.1",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
