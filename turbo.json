@@ -6,7 +6,8 @@
     "DATABASE_URL",
     "JWT_SECRET",
     "JWT_EXPIRES_IN_SECONDS",
-    "FILES_DIR"
+    "FILES_DIR",
+    "UPLOAD_IDLE_TIMEOUT_MS"
   ],
   "tasks": {
     "db:generate": {
