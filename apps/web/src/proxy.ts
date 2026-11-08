@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ACCESS_TOKEN_COOKIE, readSession } from '@/lib/access-token';
 
-// Главная доступна только после входа, а регистрация и вход залогиненному не нужны:
+// Главная и страницы встреч доступны только после входа, а регистрация и вход залогиненному не нужны:
 // уводим на нужную страницу до её рендера.
 // Проверка оптимистичная, по cookie: доступ к данным проверяет api.
 export function proxy(request: NextRequest) {
@@ -11,8 +11,9 @@ export function proxy(request: NextRequest) {
   const hasSession = Boolean(
     readSession(request.cookies.get(ACCESS_TOKEN_COOKIE)?.value),
   );
+  const { pathname } = request.nextUrl;
 
-  if (request.nextUrl.pathname === '/') {
+  if (pathname === '/' || pathname.startsWith('/meetings/')) {
     return hasSession
       ? NextResponse.next()
       : NextResponse.redirect(new URL('/login', request.url));
@@ -24,5 +25,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/register', '/login'],
+  matcher: ['/', '/meetings/:id', '/register', '/login'],
 };

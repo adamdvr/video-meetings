@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "check-types": "next typegen && tsc --noEmit"
+    "check-types": "next typegen && tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@gravity-ui/icons": "^2.23.0",
@@ -19,6 +20,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24",
     "@types/react": "^19",
