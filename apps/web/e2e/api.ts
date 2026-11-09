@@ -81,3 +81,15 @@ export async function uploadFile(
   expect(response.status()).toBe(201);
   return (await response.json()) as MeetingFile;
 }
+
+export async function listFiles(
+  request: APIRequestContext,
+  accessToken: string,
+  meetingId: string,
+) {
+  const response = await request.get(`${API_URL}/meetings/${meetingId}/files`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  expect(response.status()).toBe(200);
+  return (await response.json()) as MeetingFile[];
+}
