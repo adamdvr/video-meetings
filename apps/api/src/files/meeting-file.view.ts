@@ -11,6 +11,7 @@ export interface MeetingFileView {
 export interface StoredMeetingFile extends MeetingFileView {
   path: string;
   contentType: string;
+  viewDisposition: string;
 }
 
 export const toMeetingFileView = ({

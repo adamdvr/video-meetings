@@ -111,5 +111,9 @@ export const formatOf = (fileName: string) =>
 export const mimeTypeOf = (fileName: string) =>
   formatOf(fileName)?.mimeType ?? 'application/octet-stream';
 
+const VIEWABLE_TYPES = /^(video|audio|image)\/|^application\/pdf$/;
+
+export const isViewable = (mimeType: string) => VIEWABLE_TYPES.test(mimeType);
+
 export const contentTypeOf = (mimeType: string) =>
   mimeType.startsWith('text/') ? `${mimeType}; charset=utf-8` : mimeType;

@@ -1,22 +1,39 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { access } from 'node:fs/promises';
 import { request as httpRequest, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { getConfig } from './../src/config/configuration.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
 
 const PASSWORD = 'correct-horse-battery';
 
 const uniqueEmail = () => `user-${randomUUID()}@example.com`;
 
-const PDF_HEADER = Buffer.from('%PDF-1.7\n');
+const fileWith = (header: string, size: number) =>
+  Buffer.concat([
+    Buffer.from(header, 'latin1'),
+    randomBytes(size - header.length),
+  ]);
 
-const pdf = (size: number) =>
-  Buffer.concat([PDF_HEADER, randomBytes(size - PDF_HEADER.length)]);
+const pdf = (size: number) => fileWith('%PDF-1.7\n', size);
+
+const WEBM_HEADER = '\x1a\x45\xdf\xa3';
+
+const existsOnDisk = async (meetingId: string, fileId: string) => {
+  try {
+    await access(join(getConfig().filesDir, meetingId, fileId));
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const sha256 = (data: Buffer) =>
   createHash('sha256').update(data).digest('hex');
@@ -94,6 +111,17 @@ describe('Files (e2e)', () => {
       .get(`/meetings/${meetingId}/files/${fileId}`)
       .set('Authorization', `Bearer ${token}`)
       .responseType('blob');
+
+  const viewFile = (token: string, meetingId: string, fileId: string) =>
+    request(app.getHttpServer())
+      .get(`/meetings/${meetingId}/files/${fileId}/view`)
+      .set('Authorization', `Bearer ${token}`)
+      .responseType('blob');
+
+  const deleteFile = (token: string, meetingId: string, fileId: string) =>
+    request(app.getHttpServer())
+      .delete(`/meetings/${meetingId}/files/${fileId}`)
+      .set('Authorization', `Bearer ${token}`);
 
   async function uploadOk(
     token: string,
@@ -418,6 +446,237 @@ describe('Files (e2e)', () => {
       await request(app.getHttpServer())
         .get(`/meetings/${meetingId}/files/${file.id}`)
         .expect(401);
+    });
+  });
+
+  describe('GET /meetings/:id/files/:fileId/view', () => {
+    it.each([
+      ['Отчёт за май.pdf', '%PDF-1.7\n', 'application/pdf'],
+      ['Запись встречи.webm', WEBM_HEADER, 'video/webm'],
+      ['Голосовая заметка.mp3', 'ID3', 'audio/mpeg'],
+      ['Схема.png', '\x89PNG\r\n\x1a\n', 'image/png'],
+    ])(
+      'показывает %s в браузере с типом из списка форматов',
+      async (name: string, header: string, contentType: string) => {
+        const token = await registerUser();
+        const meetingId = await createMeeting(token);
+        const data = fileWith(header, 32 * 1024);
+        const file = await uploadOk(token, meetingId, name, data);
+
+        const res = await viewFile(token, meetingId, file.id).expect(200);
+
+        const headers = res.headers as Record<string, string>;
+        expect(sha256(res.body as Buffer)).toBe(sha256(data));
+        expect(headers['content-type']).toBe(contentType);
+        expect(headers['x-content-type-options']).toBe('nosniff');
+        expect(headers['cache-control']).toBe('private, no-cache');
+        expect(headers['content-disposition']).toMatch(/^inline;/);
+        expect(dispositionFileName(headers['content-disposition'])).toBe(name);
+      },
+    );
+
+    it.each([
+      [
+        'Протокол.docx',
+        'PK\x03\x04',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ],
+      ['Повестка.txt', 'Agenda', 'text/plain; charset=utf-8'],
+    ])(
+      'отдаёт %s без просмотра как вложение',
+      async (name: string, header: string, contentType: string) => {
+        const token = await registerUser();
+        const meetingId = await createMeeting(token);
+        const data = fileWith(header, 1024);
+        const file = await uploadOk(token, meetingId, name, data);
+
+        const res = await viewFile(token, meetingId, file.id).expect(200);
+
+        const headers = res.headers as Record<string, string>;
+        expect(res.body as Buffer).toEqual(data);
+        expect(headers['content-type']).toBe(contentType);
+        expect(headers['x-content-type-options']).toBe('nosniff');
+        expect(headers['content-disposition']).toMatch(/^attachment;/);
+        expect(dispositionFileName(headers['content-disposition'])).toBe(name);
+      },
+    );
+
+    it('возвращает 404 для файла встречи другого пользователя', async () => {
+      const owner = await registerUser();
+      const other = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const file = await uploadOk(owner, meetingId, 'Свой.pdf', pdf(1024));
+      await viewFile(owner, meetingId, file.id).expect(200);
+
+      await viewFile(other, meetingId, file.id).expect(404);
+    });
+
+    it('возвращает 404 для несуществующего файла и файла другой встречи', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const otherMeetingId = await createMeeting(token);
+      const file = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      await viewFile(token, meetingId, file.id).expect(200);
+
+      await viewFile(token, meetingId, randomUUID()).expect(404);
+      await viewFile(token, otherMeetingId, file.id).expect(404);
+    });
+
+    it('возвращает 401 без токена', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const file = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      await viewFile(token, meetingId, file.id).expect(200);
+
+      await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/${file.id}/view`)
+        .expect(401);
+    });
+  });
+
+  describe.each([
+    ['просмотр', '/view'],
+    ['скачивание', ''],
+  ])('Range: %s', (_name: string, suffix: string) => {
+    const getRange = (
+      token: string,
+      meetingId: string,
+      fileId: string,
+      range: string,
+    ) =>
+      request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/${fileId}${suffix}`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Range', range)
+        .responseType('blob');
+
+    it('отдаёт запрошенный диапазон байт с ответом 206', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const data = fileWith(WEBM_HEADER, 256 * 1024);
+      const file = await uploadOk(token, meetingId, 'Запись.webm', data);
+
+      const res = await getRange(
+        token,
+        meetingId,
+        file.id,
+        'bytes=1000-1999',
+      ).expect(206);
+
+      const headers = res.headers as Record<string, string>;
+      expect(headers['content-range']).toBe(`bytes 1000-1999/${data.length}`);
+      expect(headers['content-length']).toBe('1000');
+      expect(headers['accept-ranges']).toBe('bytes');
+      expect(headers['content-type']).toBe('video/webm');
+      expect(res.body as Buffer).toEqual(data.subarray(1000, 2000));
+    });
+
+    it('отдаёт хвост файла по открытому диапазону', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const data = fileWith(WEBM_HEADER, 64 * 1024);
+      const file = await uploadOk(token, meetingId, 'Запись.webm', data);
+
+      const res = await getRange(
+        token,
+        meetingId,
+        file.id,
+        `bytes=${data.length - 100}-`,
+      ).expect(206);
+
+      expect((res.headers as Record<string, string>)['content-range']).toBe(
+        `bytes ${data.length - 100}-${data.length - 1}/${data.length}`,
+      );
+      expect(res.body as Buffer).toEqual(data.subarray(data.length - 100));
+    });
+
+    it('отвечает 416 на диапазон за концом файла', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const data = fileWith(WEBM_HEADER, 1024);
+      const file = await uploadOk(token, meetingId, 'Запись.webm', data);
+      await getRange(token, meetingId, file.id, 'bytes=0-9').expect(206);
+
+      const res = await getRange(
+        token,
+        meetingId,
+        file.id,
+        `bytes=${data.length}-`,
+      ).expect(416);
+
+      expect((res.headers as Record<string, string>)['content-range']).toBe(
+        `bytes */${data.length}`,
+      );
+    });
+  });
+
+  describe('DELETE /meetings/:id/files/:fileId', () => {
+    it('удаляет файл из списка и с диска', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const kept = await uploadOk(token, meetingId, 'Оставить.pdf', pdf(1024));
+      const file = await uploadOk(token, meetingId, 'Удалить.pdf', pdf(2048));
+      expect(await existsOnDisk(meetingId, file.id)).toBe(true);
+
+      await deleteFile(token, meetingId, file.id).expect(204).expect('');
+
+      const res = await listFiles(token, meetingId).expect(200);
+      expect((res.body as FileBody[]).map(({ id }) => id)).toEqual([kept.id]);
+      expect(await existsOnDisk(meetingId, file.id)).toBe(false);
+      expect(await existsOnDisk(meetingId, kept.id)).toBe(true);
+    });
+
+    it('после удаления адрес файла отвечает 404', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const file = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      await deleteFile(token, meetingId, file.id).expect(204);
+
+      await downloadFile(token, meetingId, file.id).expect(404);
+      await viewFile(token, meetingId, file.id).expect(404);
+      await deleteFile(token, meetingId, file.id).expect(404);
+    });
+
+    it('возвращает 404 для файла встречи другого пользователя и не удаляет его', async () => {
+      const owner = await registerUser();
+      const other = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const kept = await uploadOk(owner, meetingId, 'Свой.pdf', pdf(1024));
+      const deleted = await uploadOk(owner, meetingId, 'Свой.pdf', pdf(1024));
+      await deleteFile(owner, meetingId, deleted.id).expect(204);
+
+      await deleteFile(other, meetingId, kept.id).expect(404);
+
+      await downloadFile(owner, meetingId, kept.id).expect(200);
+      expect(await existsOnDisk(meetingId, kept.id)).toBe(true);
+    });
+
+    it('возвращает 404 для несуществующего файла и файла другой встречи', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const otherMeetingId = await createMeeting(token);
+      const kept = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      const deleted = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      await deleteFile(token, meetingId, deleted.id).expect(204);
+
+      await deleteFile(token, meetingId, randomUUID()).expect(404);
+      await deleteFile(token, otherMeetingId, kept.id).expect(404);
+
+      await downloadFile(token, meetingId, kept.id).expect(200);
+    });
+
+    it('возвращает 401 без токена и не удаляет файл', async () => {
+      const token = await registerUser();
+      const meetingId = await createMeeting(token);
+      const kept = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      const deleted = await uploadOk(token, meetingId, 'Файл.pdf', pdf(1024));
+      await deleteFile(token, meetingId, deleted.id).expect(204);
+
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${kept.id}`)
+        .expect(401);
+
+      await downloadFile(token, meetingId, kept.id).expect(200);
     });
   });
 
