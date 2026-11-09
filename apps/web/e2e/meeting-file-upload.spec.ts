@@ -12,6 +12,13 @@ import {
 } from './api';
 import { TIME_ZONE } from './dates';
 import { fileBytes } from './file-bytes';
+import {
+  chooseFiles,
+  fileRows,
+  slowDownUploads,
+  uploadProgress,
+  uploadRow,
+} from './upload';
 
 test.use({ locale: 'ru-RU', timezoneId: TIME_ZONE });
 
@@ -23,21 +30,6 @@ const newMeeting = () => ({
   date: '2030-03-01T10:00:00.000Z',
   participants: [],
 });
-
-const fileRows = (page: Page) =>
-  page.getByRole('list', { name: 'Файлы' }).getByRole('listitem');
-
-const chooseFilesButton = (page: Page) =>
-  page.getByRole('button', { name: 'Выбрать файлы' });
-
-async function chooseFiles(page: Page, files: string[]) {
-  const [chooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    chooseFilesButton(page).click(),
-  ]);
-  expect(chooser.isMultiple()).toBe(true);
-  await chooser.setFiles(files);
-}
 
 async function dropFiles(page: Page, target: Locator, files: string[]) {
   const box = await target.boundingBox();
@@ -87,26 +79,6 @@ async function expectSamePage(page: Page) {
       () => (window as unknown as { uploadMarker?: string }).uploadMarker,
     ),
   ).toBe('same');
-}
-
-async function slowDownUploads(page: Page, bytesPerSecond: number) {
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Network.enable');
-  await cdp.send('Network.emulateNetworkConditions', {
-    offline: false,
-    latency: 0,
-    downloadThroughput: -1,
-    uploadThroughput: bytesPerSecond,
-  });
-  return async () => {
-    await cdp.send('Network.emulateNetworkConditions', {
-      offline: false,
-      latency: 0,
-      downloadThroughput: -1,
-      uploadThroughput: -1,
-    });
-    await cdp.detach();
-  };
 }
 
 test.describe('Загрузка файлов встречи', () => {
@@ -219,15 +191,7 @@ test.describe('Загрузка файлов встречи', () => {
       await expect(progress).toBeVisible();
       await expect(progress).toHaveText(/\d+\s?%/);
     }
-    await expect
-      .poll(async () =>
-        Number(
-          await page
-            .getByRole('progressbar', { name: `Загрузка ${names[0]}` })
-            .getAttribute('aria-valuenow'),
-        ),
-      )
-      .toBeGreaterThan(0);
+    await uploadProgress(page, names[0]);
 
     await restore();
     await expect(fileRows(page)).toHaveCount(2);
@@ -255,12 +219,9 @@ test.describe('Загрузка файлов встречи', () => {
 
     await expect(fileRows(page)).toHaveCount(1);
     await expect(fileRows(page).first()).toContainText('fine.txt');
-    await expect(
-      page
-        .getByRole('list', { name: 'Загрузки' })
-        .getByRole('listitem')
-        .filter({ hasText: 'broken.txt' }),
-    ).toContainText('Не удалось загрузить');
+    await expect(uploadRow(page, 'broken.txt')).toContainText(
+      'Не удалось загрузить',
+    );
     await page.unrouteAll();
   });
 
