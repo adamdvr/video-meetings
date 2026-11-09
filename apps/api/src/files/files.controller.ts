@@ -1,7 +1,9 @@
 import {
   Controller,
+  Delete,
   Get,
   Headers,
+  HttpCode,
   HttpException,
   HttpStatus,
   BadRequestException,
@@ -21,15 +23,25 @@ import { getConfig } from '../config/configuration.js';
 import { type AuthUser, JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { GetMeetingQuery } from '../meetings/queries/get-meeting.query.js';
 import { CreateMeetingFileCommand } from './commands/create-meeting-file.command.js';
+import { DeleteMeetingFileCommand } from './commands/delete-meeting-file.command.js';
 import { formatOf, MAX_FILE_SIZE } from './file-formats.js';
 import { parseFileName } from './file-name.js';
 import { FileStorage } from './file-storage.js';
-import type { MeetingFileView } from './meeting-file.view.js';
+import type {
+  MeetingFileView,
+  StoredMeetingFile,
+} from './meeting-file.view.js';
 import { GetMeetingFileQuery } from './queries/get-meeting-file.query.js';
 import { ListMeetingFilesQuery } from './queries/list-meeting-files.query.js';
 import { UploadExceptionFilter } from './upload-exception.filter.js';
 
 const UPLOAD_CONTENT_TYPE = 'application/octet-stream';
+
+const fileHeaders = (file: StoredMeetingFile) => ({
+  'Content-Type': file.contentType,
+  'Cache-Control': 'private, no-cache',
+  'X-Content-Type-Options': 'nosniff',
+});
 
 @Controller('meetings/:meetingId/files')
 @UseGuards(JwtAuthGuard)
@@ -121,11 +133,39 @@ export class FilesController {
     response.download(file.path, file.name, {
       cacheControl: false,
       dotfiles: 'allow',
+      headers: fileHeaders(file),
+    });
+  }
+
+  @Get(':fileId/view')
+  async view(
+    @CurrentUser() user: AuthUser,
+    @Param('meetingId') meetingId: string,
+    @Param('fileId') fileId: string,
+    @Res() response: Response,
+  ) {
+    const file = await this.queryBus.execute(
+      new GetMeetingFileQuery(user.id, meetingId, fileId),
+    );
+    response.sendFile(file.path, {
+      cacheControl: false,
+      dotfiles: 'allow',
       headers: {
-        'Content-Type': file.contentType,
-        'Cache-Control': 'private, no-cache',
-        'X-Content-Type-Options': 'nosniff',
+        ...fileHeaders(file),
+        'Content-Disposition': file.viewDisposition,
       },
     });
+  }
+
+  @Delete(':fileId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @CurrentUser() user: AuthUser,
+    @Param('meetingId') meetingId: string,
+    @Param('fileId') fileId: string,
+  ): Promise<void> {
+    return this.commandBus.execute(
+      new DeleteMeetingFileCommand(user.id, meetingId, fileId),
+    );
   }
 }
