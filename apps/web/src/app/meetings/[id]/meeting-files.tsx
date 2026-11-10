@@ -1,18 +1,33 @@
 import ArrowDownToLine from '@gravity-ui/icons/ArrowDownToLine';
+import Eye from '@gravity-ui/icons/Eye';
 import File from '@gravity-ui/icons/File';
 import { Alert, buttonVariants, Card, Skeleton } from '@heroui/react';
 import { MeetingDate } from '@/app/meeting-date';
 import { RetryButton } from '@/app/retry-button';
+import { filePath } from '@/lib/file-proxy';
+import { ViewKind, viewKindOf } from '@/lib/file-rules';
 import { formatFileSize } from '@/lib/file-size';
 import { getMeetingFiles, type MeetingFile } from '@/lib/meeting-files';
+import { DeleteFileButton } from './delete-file-button';
 import { FileUpload } from './file-upload';
+import { FileViewer } from './file-viewer';
+
+const actionClassName = buttonVariants({
+  className: 'shrink-0 max-sm:size-11 max-sm:px-0',
+  size: 'sm',
+  variant: 'secondary',
+});
 
 export async function MeetingFiles({ meetingId }: { meetingId: string }) {
   const files = await getMeetingFiles(meetingId);
 
   return (
     <section aria-labelledby="files" className="mt-10">
-      <h2 className="text-xl font-semibold tracking-tight" id="files">
+      <h2
+        className="text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-focus"
+        id="files"
+        tabIndex={-1}
+      >
         Файлы
         {files && (
           <>
@@ -54,9 +69,13 @@ function FileRow({
   file: MeetingFile;
   meetingId: string;
 }) {
+  const downloadUrl = filePath(meetingId, file.id);
+  const viewUrl = `${downloadUrl}/view`;
+  const viewKind = viewKindOf(file.mimeType);
+
   return (
     <li className="flex items-center gap-3 px-4 py-3 sm:px-6">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-soft-foreground">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-soft-foreground max-sm:hidden">
         <File aria-hidden="true" className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
@@ -68,18 +87,42 @@ function FileRow({
           </span>
         </p>
       </div>
-      <a
-        aria-label={`Скачать ${file.name}`}
-        className={buttonVariants({
-          className: 'shrink-0 max-sm:size-11 max-sm:px-0',
-          size: 'sm',
-          variant: 'secondary',
-        })}
-        href={`/meetings/${encodeURIComponent(meetingId)}/files/${encodeURIComponent(file.id)}`}
-      >
-        <ArrowDownToLine aria-hidden="true" className="size-4" />
-        <span className="max-sm:sr-only">Скачать</span>
-      </a>
+      <div className="flex shrink-0 items-center gap-2">
+        {viewKind === ViewKind.Pdf ? (
+          <a
+            aria-label={`Смотреть ${file.name}`}
+            className={actionClassName}
+            href={viewUrl}
+            rel="noopener"
+            target="_blank"
+          >
+            <Eye aria-hidden="true" className="size-4" />
+            <span className="max-sm:sr-only">Смотреть</span>
+          </a>
+        ) : (
+          viewKind && (
+            <FileViewer
+              downloadUrl={downloadUrl}
+              kind={viewKind}
+              name={file.name}
+              viewUrl={viewUrl}
+            />
+          )
+        )}
+        <a
+          aria-label={`Скачать ${file.name}`}
+          className={actionClassName}
+          href={downloadUrl}
+        >
+          <ArrowDownToLine aria-hidden="true" className="size-4" />
+          <span className="max-sm:sr-only">Скачать</span>
+        </a>
+        <DeleteFileButton
+          fileId={file.id}
+          meetingId={meetingId}
+          name={file.name}
+        />
+      </div>
     </li>
   );
 }
@@ -125,12 +168,16 @@ export function MeetingFilesPlaceholder() {
               key={index}
               className="flex items-center gap-3 px-4 py-3 sm:px-6"
             >
-              <Skeleton className="size-10 shrink-0 rounded-xl" />
+              <Skeleton className="size-10 shrink-0 rounded-xl max-sm:hidden" />
               <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                 <Skeleton className="h-5 w-3/5 rounded-md" />
                 <Skeleton className="h-4 w-2/5 rounded-md" />
               </div>
-              <Skeleton className="size-11 shrink-0 rounded-full sm:h-9 sm:w-25 md:h-8" />
+              <div className="flex shrink-0 gap-2">
+                <Skeleton className="size-11 rounded-full sm:h-9 sm:w-27.5 md:h-8" />
+                <Skeleton className="size-11 rounded-full sm:h-9 sm:w-25 md:h-8" />
+                <Skeleton className="size-11 rounded-full sm:size-9 md:size-8" />
+              </div>
             </div>
           ))}
         </div>

@@ -62,3 +62,18 @@ export function uploadErrorOf(status: number, message?: unknown) {
       return 'Не удалось загрузить';
   }
 }
+
+export enum ViewKind {
+  Video = 'video',
+  Audio = 'audio',
+  Image = 'image',
+  Pdf = 'pdf',
+}
+
+export function viewKindOf(mimeType: string) {
+  if (mimeType === 'application/pdf') return ViewKind.Pdf;
+  if (mimeType.startsWith('video/')) return ViewKind.Video;
+  if (mimeType.startsWith('audio/')) return ViewKind.Audio;
+  if (mimeType.startsWith('image/')) return ViewKind.Image;
+  return null;
+}
