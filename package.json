@@ -20,6 +20,7 @@
     "test:e2e": "turbo run test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "ralph": "node scripts/ralph.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
