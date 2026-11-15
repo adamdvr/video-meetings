@@ -49,5 +49,6 @@ apps/api/storage/
 .claude/hooks/.verify-state.json
 .claude/hooks/.verify-off
 
-# Счётчик итераций Ralph loop (scripts/ralph.mjs)
+# Счётчик итераций и журнал выводов Ralph loop (scripts/ralph.mjs)
 .claude/ralph.iterations.json
+.claude/ralph.progress.md

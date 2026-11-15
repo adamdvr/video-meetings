@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +10,7 @@ const MAX_ATTEMPTS = 3;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const configPath = path.join(root, '.claude/ralph.config.json');
 const counterPath = path.join(root, '.claude/ralph.iterations.json');
+const progressPath = path.join(root, '.claude/ralph.progress.md');
 
 class Stop extends Error {
   constructor(message, code = 1) {
@@ -244,6 +245,11 @@ function loop(config) {
       }
       console.log(`✅ Milestone «${config.milestone}» завершён. Создаём PR.`);
       openPullRequest(config.milestone, config.branch);
+      if (existsSync(progressPath)) {
+        console.log(
+          '📝 Выводы агента — в .claude/ralph.progress.md: перенеси ценное в CLAUDE.md и удали файл перед следующим milestone.',
+        );
+      }
       return;
     }
 
