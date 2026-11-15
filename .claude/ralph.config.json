@@ -1,0 +1,5 @@
+{
+  "milestone": "",
+  "branch": "feat/phase-5",
+  "prompt": "Прочитай .claude/ralph.md и следуй правилам оттуда. Возьми следующую открытую Issue из milestone '{milestone}' и реализуй её в '{branch}'."
+}
