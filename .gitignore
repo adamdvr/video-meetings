@@ -47,5 +47,7 @@ apps/api/storage/
 
 # Локальное состояние хука проверки Claude Code (.claude/hooks/verify.mjs)
 .claude/hooks/.verify-state.json
-.claude/hooks/.ralph-state.json
 .claude/hooks/.verify-off
+
+# Счётчик итераций Ralph loop (scripts/ralph.mjs)
+.claude/ralph.iterations.json
