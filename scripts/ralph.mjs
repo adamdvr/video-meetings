@@ -66,6 +66,11 @@ function loadConfig() {
       );
     }
   }
+  for (const key of ['model', 'reviewModel']) {
+    if (config[key] !== undefined && typeof config[key] !== 'string') {
+      throw new Stop(`${key} в .claude/ralph.config.json должен быть строкой.`);
+    }
+  }
   return config;
 }
 
@@ -153,7 +158,7 @@ function openPullRequest(milestone, branch) {
   );
   if (existing.length > 0) {
     console.log(`PR уже открыт: ${existing[0].url}`);
-    return;
+    return null;
   }
 
   const ahead = Number(
@@ -163,7 +168,7 @@ function openPullRequest(milestone, branch) {
     console.log(
       `В ${branch} нет новых коммитов относительно ${BASE_BRANCH}, PR не создан.`,
     );
-    return;
+    return null;
   }
 
   run('git', ['push', '-u', 'origin', branch]);
@@ -180,6 +185,7 @@ function openPullRequest(milestone, branch) {
     `Закрывает все Issues из milestone «${milestone}».`,
   ]);
   console.log(`PR: ${url}`);
+  return url;
 }
 
 function buildPrompt(config, issue) {
@@ -190,19 +196,18 @@ function buildPrompt(config, issue) {
   return `${prompt}\n\nТекущая Issue #${issue.number}: ${issue.title}`;
 }
 
-function runAgent(prompt, maxTurns) {
-  const result = spawnSync(
-    'claude',
-    [
-      '-p',
-      prompt,
-      '--max-turns',
-      String(maxTurns),
-      '--permission-mode',
-      'auto',
-    ],
-    { cwd: root, stdio: 'inherit' },
-  );
+function runClaude({ prompt, maxTurns, model, extraArgs = [] }) {
+  const args = [
+    '-p',
+    prompt,
+    '--max-turns',
+    String(maxTurns),
+    '--permission-mode',
+    'auto',
+    ...(model ? ['--model', model] : []),
+    ...extraArgs,
+  ];
+  const result = spawnSync('claude', args, { cwd: root, stdio: 'inherit' });
   if (result.error)
     throw new Stop(`Не удалось запустить claude: ${result.error.message}`);
   if (result.signal)
@@ -212,6 +217,22 @@ function runAgent(prompt, maxTurns) {
       `⚠️ Агент завершился с кодом ${result.status} (возможно, исчерпан maxTurns).`,
     );
   }
+  return result.status === 0;
+}
+
+function reviewPullRequest(config, url) {
+  console.log(`🔍 Финальное ревью PR моделью ${config.reviewModel}…`);
+  const ok = runClaude({
+    prompt: `Прочитай .claude/ralph-review.md и проведи по этим правилам финальное ревью PR ${url} для milestone «${config.milestone}». Базовая ветка — ${BASE_BRANCH}.`,
+    maxTurns: config.maxTurns,
+    model: config.reviewModel,
+    extraArgs: ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit'],
+  });
+  console.log(
+    ok
+      ? `✅ Ревью оставлено в PR: ${url}`
+      : `⚠️ Финальное ревью не завершилось, PR остался без него: ${url}`,
+  );
 }
 
 function loop(config) {
@@ -244,7 +265,8 @@ function loop(config) {
         );
       }
       console.log(`✅ Milestone «${config.milestone}» завершён. Создаём PR.`);
-      openPullRequest(config.milestone, config.branch);
+      const url = openPullRequest(config.milestone, config.branch);
+      if (url && config.reviewModel) reviewPullRequest(config, url);
       if (existsSync(progressPath)) {
         console.log(
           '📝 Выводы агента — в .claude/ralph.progress.md: перенеси ценное в CLAUDE.md и удали файл перед следующим milestone.',
@@ -266,7 +288,11 @@ function loop(config) {
     console.log(
       `🔄 Итерация ${count + 1}/${config.maxIterations} — Issue #${next.number}: ${next.title} (попытка ${attempts} из ${MAX_ATTEMPTS})`,
     );
-    runAgent(buildPrompt(config, next), config.maxTurns);
+    runClaude({
+      prompt: buildPrompt(config, next),
+      maxTurns: config.maxTurns,
+      model: config.model,
+    });
   }
 }
 
