@@ -51,16 +51,17 @@ docker compose down -v        # остановить и удалить данн�
 
 Запускаются из корня. Turborepo выполняет задачу во всех приложениях параллельно и кэширует результат.
 
-| Команда                           | Что делает                         |
-| --------------------------------- | ---------------------------------- |
-| `npm run dev`                     | dev-режим обоих приложений         |
-| `npm run build`                   | production-сборка                  |
-| `npm start`                       | сборка и запуск production-версий  |
-| `npm run lint` / `lint:fix`       | ESLint: проверка / автоисправление |
-| `npm run check-types`             | проверка типов TypeScript          |
-| `npm test`                        | unit-тесты (Vitest)                |
-| `npm run test:e2e`                | e2e-тесты api и web                |
-| `npm run format` / `format:check` | Prettier по всему репозиторию      |
+| Команда                           | Что делает                                                     |
+| --------------------------------- | -------------------------------------------------------------- |
+| `npm run dev`                     | dev-режим обоих приложений                                     |
+| `npm run build`                   | production-сборка                                              |
+| `npm start`                       | сборка и запуск production-версий                              |
+| `npm run lint` / `lint:fix`       | ESLint: проверка / автоисправление                             |
+| `npm run check-types`             | проверка типов TypeScript                                      |
+| `npm test`                        | unit-тесты (Vitest)                                            |
+| `npm run test:e2e`                | e2e-тесты api и web                                            |
+| `npm run format` / `format:check` | Prettier по всему репозиторию                                  |
+| `npm run ralph`                   | Ralph loop: агент закрывает Issues milestone, см. «Ralph loop» |
 
 Задача только для одного приложения: `npm run dev -- --filter=web`.
 Скрипт приложения напрямую, без Turborepo: `npm run test:watch -w api`.
@@ -111,6 +112,22 @@ npm run test:e2e -w web -- --ui                             # web в окне Pl
 - **Пропустить**: `git commit --no-verify` для одного коммита или `HUSKY=0 git commit …`. Красный хук лучше чинить, а не обходить.
 - **Окружение.** Хук берёт ту версию Node, что активна в месте коммита (`nvm use`). Если коммит делается из среды без nvm (GUI-клиент, IDE) и хук не находит `node` или `npm`, подключите nvm в `~/.config/husky/init.sh`.
 
+## Ralph loop
+
+`npm run ralph` (`scripts/ralph.mjs`) по очереди отдаёт агенту открытые Issues одного milestone. Каждая Issue решается в новом `claude -p` с чистым контекстом, по правилам из `.claude/ralph.md`. Когда открытых Issues не остаётся, скрипт пушит ветку и открывает PR в `main`.
+
+1. Заполните `.claude/ralph.config.json`: `milestone` (название на GitHub), `branch` (рабочая ветка), `maxIterations`, `maxTurns`, `prompt`.
+2. Поднимите окружение для тестов (см. «Тесты»): агент гоняет их сам, а коммиты проходят через pre-commit.
+3. Запустите `npm run ralph` с `main` или с рабочей ветки. С `main` скрипт сам переключится на ветку или создаст её от свежего `origin/main`.
+
+Агент работает без подтверждений (`--permission-mode auto`). Предохранители:
+
+- **`maxIterations`** — сколько Issues взять за один запуск. Счётчик хранится в `.claude/ralph.iterations.json` и сбрасывается при выходе. `1` — пошаговый режим: проверили результат, запустили снова. `5–10` — автономный режим.
+- **`maxTurns`** — лимит шагов агента в одной сессии.
+- **3 итерации на одну Issue** — если Issue не закрылась, скрипт останавливается.
+- **5 красных прогонов тестов** — агент пишет комментарий в Issue и вешает метку `blocked` (правило в `ralph.md`). Такие Issues скрипт пропускает, а если остались только они, останавливается без PR.
+- **Незакоммиченные изменения** в `apps/` или `packages/` после итерации — остановка.
+
 ## Структура
 
 ```text
@@ -119,6 +136,7 @@ apps/
   api/      NestJS
 packages/   общие пакеты (подключены в workspaces, пока пусто)
 .husky/     git-хук pre-commit
+scripts/    ralph.mjs — раннер Ralph loop
 docker-compose.yml   локальный PostgreSQL
 ```
 
