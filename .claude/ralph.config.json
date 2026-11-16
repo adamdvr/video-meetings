@@ -1,6 +1,6 @@
 {
-  "milestone": "",
-  "branch": "feat/phase-5",
+  "milestone": "Фаза 1: Профиль и имя в api",
+  "branch": "feat/api-profile-name",
   "maxIterations": 1,
   "maxTurns": 50,
   "model": "sonnet",
