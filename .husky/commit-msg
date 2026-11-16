@@ -1,0 +1,4 @@
+if grep -qiE '^(co-authored-by:.*(claude|anthropic)|.*generated with \[?claude code)' "$1"; then
+  echo "commit-msg: уберите строки об участии Claude (Co-Authored-By: Claude, Generated with Claude Code): правило из раздела «Commits» в CLAUDE.md." >&2
+  exit 1
+fi

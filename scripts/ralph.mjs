@@ -188,12 +188,51 @@ function openPullRequest(milestone, branch) {
   return url;
 }
 
-function buildPrompt(config, issue) {
+function buildPrompt(config, issue, base) {
   const prompt = config.prompt
     .replaceAll('{milestone}', config.milestone)
     .replaceAll('{issue}', `#${issue.number}`)
-    .replaceAll('{branch}', config.branch);
-  return `${prompt}\n\nТекущая Issue #${issue.number}: ${issue.title}`;
+    .replaceAll('{branch}', config.branch)
+    .replaceAll('{base}', base);
+  return `${prompt}\n\nТекущая Issue #${issue.number}: ${issue.title}\nТочка отсчёта для ревью (HEAD до начала итерации): ${base}`;
+}
+
+const REVIEW_HEADING = /^##\s+Ревью\s*$/m;
+
+function hasReviewReport(body) {
+  return (
+    REVIEW_HEADING.test(body) &&
+    body.includes('/code-review') &&
+    body.includes('/security-review')
+  );
+}
+
+function checkReview(issue, startedAt) {
+  const { state, comments } = JSON.parse(
+    run('gh', [
+      'issue',
+      'view',
+      String(issue.number),
+      '--json',
+      'state,comments',
+    ]),
+  );
+  if (state !== 'CLOSED') return;
+  const reported = comments.some(
+    ({ body, createdAt }) =>
+      Date.parse(createdAt) >= startedAt && hasReviewReport(body),
+  );
+  if (reported) return;
+  run('gh', [
+    'issue',
+    'reopen',
+    String(issue.number),
+    '--comment',
+    'Ralph переоткрыл Issue: в комментариях итерации нет раздела «## Ревью» с итогами /code-review и /security-review (правило в .claude/ralph.md).',
+  ]);
+  throw new Stop(
+    `Issue #${issue.number} закрыта без раздела «## Ревью» с итогами /code-review и /security-review. Ralph переоткрыл её и останавливается.`,
+  );
 }
 
 function runClaude({ prompt, maxTurns, model, extraArgs = [] }) {
@@ -288,11 +327,14 @@ function loop(config) {
     console.log(
       `🔄 Итерация ${count + 1}/${config.maxIterations} — Issue #${next.number}: ${next.title} (попытка ${attempts} из ${MAX_ATTEMPTS})`,
     );
+    const base = run('git', ['rev-parse', 'HEAD']);
+    const startedAt = Date.now() - 60_000;
     runClaude({
-      prompt: buildPrompt(config, next),
+      prompt: buildPrompt(config, next, base),
       maxTurns: config.maxTurns,
       model: config.model,
     });
+    checkReview(next, startedAt);
   }
 }
 
